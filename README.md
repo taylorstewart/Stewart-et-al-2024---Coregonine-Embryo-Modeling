@@ -1,1 +1,2 @@
-# Coregonine-DD-Modeling
+# coregonidR
+Coregonid egg development model
