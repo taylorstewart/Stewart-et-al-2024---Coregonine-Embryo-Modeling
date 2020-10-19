@@ -37,3 +37,10 @@ vignettes/*.pdf
 
 # R Environment Variables
 .Renviron
+
+# .DS_Store
+.DS_Store
+data/.DS_Store
+raw_data/.DS_Store
+raw_data/Lake Annecy/.DS_Store
+raw_data/Lake Superior/.DS_Store
