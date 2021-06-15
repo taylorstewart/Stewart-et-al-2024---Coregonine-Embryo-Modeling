@@ -17,8 +17,8 @@ library(cowplot)
 
 #### LOAD TEMPERATURE DATA -----------------------------------------------------------------------
 
-temp.1 <- read_excel("data/LakeKonnevesi_Temp.xlsx", sheet = "2018")
-temp.2 <- read_excel("data/LakeKonnevesi_Temp.xlsx", sheet = "2019")
+temp.1 <- read_excel("data/lake-konnevesi/LakeKonnevesi_Temp.xlsx", sheet = "2018")
+temp.2 <- read_excel("data/lake-konnevesi/LakeKonnevesi_Temp.xlsx", sheet = "2019")
 
 temp.all <- bind_rows(temp.1, temp.2) %>% 
   mutate(jday = yday(date),
@@ -89,20 +89,14 @@ temp.lavaretus.ADD <- temp.lavaretus.filter %>% group_by(year) %>%
 ## Antilog: 10^(log(y))
 
 ## Luczynski and Kirklewska, 1984
-model.data.LK <- data.frame(temp.c = c(9.9, 8.4, 6.6, 4.9, 2.9, 2.0, 1.1,1.1, 1.1),
-                            dpf = c(45, 56, 77, 101, 137, 156, 176, 183, 176)) %>% 
-  mutate(dpf.recip = dpf^-1,
-         log.dpf.recip = log10(dpf.recip))
-
-## Fit Semilog Model
-model.LK <- lm(log.dpf.recip ~ temp.c + I(temp.c^2), data = model.data.LK)
+model.LK <- data.frame(a = -2.303495, b = 0.065057, c = 0.000434)
 
 ## Take antilog from daily semilog output, accumulate across days
 model.LK.perc <- temp.all %>% left_join(mu.spawn.albula) %>% 
   group_by(year) %>% 
   filter(date >= mu.spawn) %>% 
-  mutate(perc.day = (10^(coef(model.LK)[[1]] + coef(model.LK)[[2]] * temp.c.ma + coef(model.LK)[[3]] * temp.c.ma^2))*100,
-         perc.cum = cumsum(perc.day),) %>% 
+  mutate(perc.day = (10^(model.LK$a + model.LK$b * temp.c.ma + model.LK$c * temp.c.ma^2))*100,
+         perc.cum = cumsum(perc.day)) %>% 
   filter(perc.cum <= 100) %>%
   mutate(ADD = cumsum(temp.c.ma))
 
@@ -114,13 +108,21 @@ model.LK.perc.max <- model.LK.perc %>% group_by(year) %>%
 
 ## Stewart et al. 2021
 model.data.albula.ST <- read_excel("/Users/taylor/SynologyDrive/Cisco-Climate-Change/Coregonine-Temp-Embryo/data/Coregonine-Temperature-Experiment-FI-Hatch.xlsx", sheet = "2019HatchingData") %>% 
+  filter(species == "albula") %>% 
   mutate(eye = as.numeric(eye),
          hatch = as.numeric(hatch)) %>% 
   filter(!is.na(eye), !is.na(hatch), !is.na(dpf), hatch == 1, include.incubation == "y") %>% 
-  rename(temp.c = temperature) %>% 
+  rename(temp.c = temperature) %>%
+  group_by(temp.c, dpf) %>% 
+  summarize(n = n()) %>% ungroup() %>%
+  arrange(temp.c, dpf) %>% 
+  group_by(temp.c) %>% 
+  mutate(total.n = sum(n),
+         prop.n = n/total.n,
+         cum.prop = cumsum(prop.n)) %>% 
+  filter(abs(cum.prop - 0.5) == min(abs(cum.prop - 0.5))) %>% 
   mutate(dpf.recip = dpf^-1,
-         log.dpf.recip = log10(dpf.recip)) %>% 
-  filter(species == "albula")
+         log.dpf.recip = log10(dpf.recip))
 
 ## Fit Semilog Model
 model.albula.ST <- lm(log.dpf.recip ~ temp.c + I(temp.c^2), data = model.data.albula.ST)
@@ -142,20 +144,14 @@ model.albula.ST.perc.max <- model.albula.ST.perc %>% group_by(year) %>%
 
 #### EUROPEAN WHITEFISH MODELS -------------------------------------------------------------------
 
-## Eckmann 1987
-model.data.EC <- data.frame(temp.c = rep(c(2.5, 4, 7, 10), each = 3),
-                            dpf = c(95, 95, 107, 71, 82, 84, 43, 48, 50, 29, 32, 33)) %>% 
-  mutate(dpf.recip = dpf^-1,
-         log.dpf.recip = log10(dpf.recip))
-
-## Fit Semilog Model
-model.EC <- lm(log.dpf.recip ~ temp.c + I(temp.c^2), data = model.data.EC)
+## Eckmann 1987 (uses natural log)
+model.EC <- data.frame(a = -2.300162, b = 0.110354, c = -0.003094489)
 
 ## Take antilog from daily semilog output, accumulate across days
 model.EC.perc <- temp.all %>% left_join(mu.spawn.lavaretus) %>% 
   group_by(year) %>% 
   filter(date >= mu.spawn) %>% 
-  mutate(perc.day = (10^(coef(model.EC)[[1]] + coef(model.EC)[[2]] * temp.c.ma + coef(model.EC)[[3]] * temp.c.ma^2))*100,
+  mutate(perc.day = (10^(model.EC$a + model.EC$b * temp.c.ma + model.EC$c * temp.c.ma^2))*100,
          perc.cum = cumsum(perc.day),) %>% 
   filter(perc.cum <= 100) %>%
   mutate(ADD = cumsum(temp.c.ma))
@@ -168,13 +164,21 @@ model.EC.perc.max <- model.EC.perc %>% group_by(year) %>%
 
 ## Stewart et al. 2021
 model.data.lavaretus.ST <- read_excel("/Users/taylor/SynologyDrive/Cisco-Climate-Change/Coregonine-Temp-Embryo/data/Coregonine-Temperature-Experiment-FI-Hatch.xlsx", sheet = "2019HatchingData") %>% 
+  filter(species == "lavaretus") %>% 
   mutate(eye = as.numeric(eye),
          hatch = as.numeric(hatch)) %>% 
   filter(!is.na(eye), !is.na(hatch), !is.na(dpf), hatch == 1, include.incubation == "y") %>% 
-  rename(temp.c = temperature) %>% 
+  rename(temp.c = temperature) %>%
+  group_by(temp.c, dpf) %>% 
+  summarize(n = n()) %>% ungroup() %>%
+  arrange(temp.c, dpf) %>% 
+  group_by(temp.c) %>% 
+  mutate(total.n = sum(n),
+         prop.n = n/total.n,
+         cum.prop = cumsum(prop.n)) %>% 
+  filter(abs(cum.prop - 0.5) == min(abs(cum.prop - 0.5))) %>% 
   mutate(dpf.recip = dpf^-1,
-         log.dpf.recip = log10(dpf.recip)) %>% 
-  filter(species == "lavaretus")
+         log.dpf.recip = log10(dpf.recip))
 
 ## Fit Semilog Model
 model.lavaretus.ST <- lm(log.dpf.recip ~ temp.c + I(temp.c^2), data = model.data.lavaretus.ST)

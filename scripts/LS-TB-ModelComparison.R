@@ -97,10 +97,18 @@ model.data.ST <- read_excel("/Users/taylor/SynologyDrive/Cisco-Climate-Change/Co
   mutate(eye = as.numeric(eye),
          hatch = as.numeric(hatch)) %>% 
   filter(!is.na(eye), !is.na(hatch), !is.na(dpf), hatch == 1, include.incubation == "y") %>% 
-  rename(temp.c = temperature) %>% 
+  filter(population == "superior") %>% 
+  rename(temp.c = temperature) %>%
+  group_by(temp.c, dpf) %>% 
+  summarize(n = n()) %>% ungroup() %>%
+  arrange(temp.c, dpf) %>% 
+  group_by(temp.c) %>% 
+  mutate(total.n = sum(n),
+         prop.n = n/total.n,
+         cum.prop = cumsum(prop.n)) %>% 
+  filter(abs(cum.prop - 0.5) == min(abs(cum.prop - 0.5))) %>% 
   mutate(dpf.recip = dpf^-1,
-         log.dpf.recip = log10(dpf.recip)) %>% 
-  filter(population == "superior")
+         log.dpf.recip = log10(dpf.recip))
 
 ## Fit Semilog Model
 model.ST <- lm(log.dpf.recip ~ temp.c + I(temp.c^2), data = model.data.ST)

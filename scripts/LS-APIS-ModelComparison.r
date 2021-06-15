@@ -68,19 +68,13 @@ temp.ADD <- temp.filter %>% group_by(year) %>%
 ## Antilog: 10^(log(y))
 
 ## Colby and Brooke
-model.data.CB <- data.frame(temp.c = c(9.95, 8.9, 7.75, 6.7, 5.6, 3.35, 1.7, 0.5),
-                       dpf = c(37.74, 46.33, 59.61, 73.41, 91.63, 146.29, 186.64, 234.53)) %>% 
-  mutate(dpf.recip = dpf^-1,
-         log.dpf.recip = log10(dpf.recip))
-
-## Fit Semilog Model
-model.CB <- lm(log.dpf.recip ~ temp.c + I(temp.c^2), data = model.data.CB)
+model.CB <- data.frame(a = -2.4088, b = 0.0720, c = 0.0011)
 
 ## Take antilog from daily semilog output, accumulate across days
 model.CB.perc <- temp.all %>% left_join(mu.spawn) %>% 
   group_by(year) %>% 
   filter(date >= mu.spawn) %>% 
-  mutate(perc.day = (10^(coef(model.CB)[[1]] + coef(model.CB)[[2]] * temp.c.ma + coef(model.CB)[[3]] * temp.c.ma^2))*100,
+  mutate(perc.day = (10^(model.CB$a + model.CB$b * temp.c.ma + model.CB$c * temp.c.ma^2))*100,
          perc.cum = cumsum(perc.day)) %>% 
   filter(perc.cum <= 100) %>%
   mutate(ADD = cumsum(temp.c.ma))
@@ -90,16 +84,25 @@ model.CB.perc.max <- model.CB.perc %>% group_by(year) %>%
   select(date, year, temp.c.ma, ADD) %>% 
   mutate(model = "CB")
 
+
 ## Stewart et al. 2021
 model.data.ST <- read_excel("/Users/taylor/SynologyDrive/Cisco-Climate-Change/Coregonine-Temp-Embryo/data/Coregonine-Temperature-Experiment-NA-Hatch.xlsx", sheet = "2020HatchingData") %>% 
   filter(is.na(notes) | notes != "empty well", block != "A" | population != "superior") %>% 
   mutate(eye = as.numeric(eye),
          hatch = as.numeric(hatch)) %>% 
   filter(!is.na(eye), !is.na(hatch), !is.na(dpf), hatch == 1, include.incubation == "y") %>% 
-  rename(temp.c = temperature) %>% 
+  filter(population == "superior") %>% 
+  rename(temp.c = temperature) %>%
+  group_by(temp.c, dpf) %>% 
+  summarize(n = n()) %>% ungroup() %>%
+  arrange(temp.c, dpf) %>% 
+  group_by(temp.c) %>% 
+  mutate(total.n = sum(n),
+         prop.n = n/total.n,
+         cum.prop = cumsum(prop.n)) %>% 
+  filter(abs(cum.prop - 0.5) == min(abs(cum.prop - 0.5))) %>% 
   mutate(dpf.recip = dpf^-1,
-         log.dpf.recip = log10(dpf.recip)) %>% 
-  filter(population == "superior")
+         log.dpf.recip = log10(dpf.recip))
 
 ## Fit Semilog Model
 model.ST <- lm(log.dpf.recip ~ temp.c + I(temp.c^2), data = model.data.ST)

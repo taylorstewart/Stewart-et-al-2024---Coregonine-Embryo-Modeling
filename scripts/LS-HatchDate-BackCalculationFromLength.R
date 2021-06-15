@@ -13,9 +13,8 @@ library(readxl)
 
 # LOAD LARVAL LENGTH AND ABUNDANCE DATA -------------------------------------------------------
 
-larvae <- read_excel("data/LakeSuperior_APIS_LarvalLengths.xlsx", sheet = "data") %>% 
-  filter(!is.na(LENGTH)) %>% 
-  filter(YEAR != 2014, YEAR != 2015)
+larvae <- read_excel("data/lake-superior-apostle-islands/lake-superior-apis-larval-lengths.xlsx", sheet = "data") %>% 
+  filter(!is.na(LENGTH))
 
 
 ## Total length-at-hatch = 9.936 (Stewart et al., 2021)
@@ -39,6 +38,8 @@ larvae.back.summary <- larvae.back %>% group_by(YEAR) %>%
             sigma.hatch = (max.date - mean.date) / 2.58,
             lower.dist = mean.date-sigma.hatch,
             upper.dist = mean.date+sigma.hatch)
+
+write.csv(larvae.back.summary, "data/lake-superior-apostle-islands/lake-superior-apis-hatching.csv", row.names = FALSE)
 
 
 ggplot(larvae.back, aes(x = hatch.date.noYear)) + 
