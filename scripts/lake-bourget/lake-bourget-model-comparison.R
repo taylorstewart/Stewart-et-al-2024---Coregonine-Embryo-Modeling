@@ -45,7 +45,6 @@ mu.spawn <- read_excel("data/lake-geneva/lake-geneva-spawning.xlsx", sheet = "la
             mu.spawn.temp = weighted.mean(temp.c, spawn.abundance, na.rm = TRUE)) %>% 
   mutate(mu.spawn.yday = yday(mu.spawn.date),
          mu.spawn.yday = ifelse(mu.spawn.yday < 30, mu.spawn.yday+365, mu.spawn.yday)) %>% 
-  ungroup() %>% 
   summarize(mu.spawn = mean(mu.spawn.yday)) %>% 
   mutate(mu.spawn = ifelse(mu.spawn > 365, mu.spawn-365, mu.spawn)) %>% 
   pull()
@@ -60,8 +59,8 @@ mu.spawn <- read_excel("data/lake-geneva/lake-geneva-spawning.xlsx", sheet = "la
 if(mu.spawn > 0 & mu.spawn < 30) {
   temp.inc <- temp.all %>% group_by(year) %>% filter(yday >= mu.spawn, yday < 240)
 } else {
-  temp.spawn <- temp.all %>% group_by(year) %>% filter(yday >= mu.spawn)
-  temp.hatch <- temp.all %>% group_by(year) %>% filter(yday <= mu.hatch)
+  temp.spawn <- temp %>% group_by(year) %>% filter(yday >= mu.spawn)
+  temp.hatch <- temp %>% group_by(year) %>% filter(yday <= mu.hatch)
   temp.inc <- bind_rows(temp.spawn, temp.hatch) 
 }
 
@@ -99,19 +98,36 @@ model.EC.perc.max <- model.EC.perc %>% group_by(year) %>%
 
 
 ## Stewart et al. 2021
-model.geneva <- read_excel("data/model-structural-parameters.xlsx", sheet = "coefs") %>% 
-  filter(lake == "Lake Geneva")
+model.data.TLB <- read_excel("/Users/taylor/SynologyDrive/Cisco-Climate-Change/Coregonine-Temp-Embryo-EuropeanWhitefish/data/Coregonine-Temperature-Experiment-EuropeFrance-Hatch.xlsx", sheet = "hatching") %>% 
+  filter(population == "leman") %>% 
+  mutate(eye = as.numeric(eye),
+         hatch = as.numeric(hatch)) %>% 
+  filter(!is.na(eye), !is.na(hatch), !is.na(dpf), hatch == 1, include.incubation == "y") %>% 
+  rename(temp.c = temperature) %>%
+  group_by(temp.c, dpf) %>% 
+  summarize(n = n()) %>% ungroup() %>%
+  arrange(temp.c, dpf) %>% 
+  group_by(temp.c) %>% 
+  mutate(total.n = sum(n),
+         prop.n = n/total.n,
+         cum.prop = cumsum(prop.n)) %>% 
+  filter(abs(cum.prop - 0.5) == min(abs(cum.prop - 0.5))) %>% 
+  mutate(dpf.recip = dpf^-1,
+         log.dpf.recip = log10(dpf.recip))
+
+## Fit Semilog Model
+model.TLB <- lm(log.dpf.recip ~ temp.c, data = model.data.TLB)
 
 ## Take antilog from daily semilog output, accumulate across days
-model.geneva.perc <- temp.all %>%
+model.TLB.perc <- temp.all %>%
   group_by(year) %>% 
   filter(date >= as.Date(mu.spawn, origin = paste0(year, "-01-01"))) %>% 
-  mutate(perc.day = (10^(model.geneva$a + model.geneva$b * temp.c))*100,
+  mutate(perc.day = (10^(coef(model.TLB)[[1]] + coef(model.TLB)[[2]] * temp.c))*100,
          perc.cum = cumsum(perc.day),) %>% 
   filter(perc.cum <= 100) %>%
   mutate(ADD = cumsum(temp.c))
 
-model.geneva.perc.max <- model.geneva.perc %>% group_by(year) %>% 
+model.TLB.perc.max <- model.TLB.perc %>% group_by(year) %>% 
   filter(perc.cum == max(perc.cum)) %>% 
   select(date, year, temp.c, ADD) %>% 
   mutate(model = "TLB")
@@ -119,7 +135,7 @@ model.geneva.perc.max <- model.geneva.perc %>% group_by(year) %>%
 
 #### COMBINE ALL MODEL HATCHING ESTIMATES --------------------------------------------------------
 
-model.hatching.all <- bind_rows(model.EC.perc.max, model.geneva.perc.max) %>% 
+model.hatching.all <- bind_rows(model.EC.perc.max, model.TLB.perc.max) %>% 
   mutate(model = factor(model, ordered = TRUE, levels = c("TLB", "EC")),
          yday = yday(date))
 

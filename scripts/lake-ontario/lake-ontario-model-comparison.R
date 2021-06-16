@@ -73,7 +73,8 @@ temp.ADD <- temp.inc %>% group_by(year) %>%
 ## Antilog: 10^(log(y))
 
 ## Colby and Brooke
-model.CB <- data.frame(a = -2.4088, b = 0.0720, c = 0.0011)
+model.CB <- read_excel("data/model-structural-parameters.xlsx", sheet = "coefs") %>% 
+  filter(lake == "Pickeral Lake")
 
 ## Take antilog from daily semilog output, accumulate across days
 model.CB.perc <- temp %>%  
@@ -90,36 +91,18 @@ model.CB.perc.max <- model.CB.perc %>% group_by(year) %>%
 
 
 ## Stewart et al. 2021
-model.data.ST <- read_excel("/Users/taylor/SynologyDrive/Cisco-Climate-Change/Coregonine-Temp-Embryo/data/Coregonine-Temperature-Experiment-NA-Hatch.xlsx", sheet = "2020HatchingData") %>% 
-  filter(is.na(notes) | notes != "empty well", block != "A" | population != "superior") %>% 
-  mutate(eye = as.numeric(eye),
-         hatch = as.numeric(hatch)) %>% 
-  filter(!is.na(eye), !is.na(hatch), !is.na(dpf), hatch == 1, include.incubation == "y") %>% 
-  filter(population == "ontario") %>% 
-  rename(temp.c = temperature) %>%
-  group_by(temp.c, dpf) %>% 
-  summarize(n = n()) %>% ungroup() %>%
-  arrange(temp.c, dpf) %>% 
-  group_by(temp.c) %>% 
-  mutate(total.n = sum(n),
-         prop.n = n/total.n,
-         cum.prop = cumsum(prop.n)) %>% 
-  filter(abs(cum.prop - 0.5) == min(abs(cum.prop - 0.5))) %>% 
-  mutate(dpf.recip = dpf^-1,
-         log.dpf.recip = log10(dpf.recip))
-
-## Fit Semilog Model
-model.ST <- lm(log.dpf.recip ~ temp.c + I(temp.c^2), data = model.data.ST)
+model.ontario <- read_excel("data/model-structural-parameters.xlsx", sheet = "coefs") %>% 
+  filter(lake == "Lake Ontario")
 
 ## Take antilog from daily semilog output, accumulate across days
-model.ST.perc <- temp %>% 
+model.ontario.perc <- temp %>% 
   filter(date >= as.Date(mu.spawn, origin = paste0(year-2, "-12-31"))) %>% 
-  mutate(perc.day = (10^(coef(model.ST)[[1]] + coef(model.ST)[[2]] * temp.c + coef(model.ST)[[3]] * temp.c^2))*100,
+  mutate(perc.day = (10^(model.ontario$a + model.ontario$b * temp.c + model.ontario$c * temp.c^2))*100,
          perc.cum = cumsum(perc.day),) %>% 
   filter(perc.cum <= 100) %>%
   mutate(ADD = cumsum(temp.c))
 
-model.ST.perc.max <- model.ST.perc %>% group_by(year) %>% 
+model.ontario.perc.max <- model.ontario.perc %>% group_by(year) %>% 
   filter(perc.cum == max(perc.cum)) %>% 
   select(date, year, temp.c, ADD) %>% 
   mutate(model = "ST")
@@ -129,7 +112,7 @@ model.ST.perc.max <- model.ST.perc %>% group_by(year) %>%
 
 model.hatching.all <- temp.ADD %>% 
   mutate(model = "EP") %>% 
-  bind_rows(., model.CB.perc.max, model.ST.perc.max) %>% 
+  bind_rows(., model.CB.perc.max, model.ontario.perc.max) %>% 
   mutate(model = factor(model, ordered = TRUE, levels = c("EP", "ST", "CB")),
          jday = yday(date))
 

@@ -17,8 +17,8 @@ library(cowplot)
 
 #### LOAD TEMPERATURE DATA -----------------------------------------------------------------------
 
-temp.1 <- read_excel("data/lake-konnevesi/LakeKonnevesi_Temp.xlsx", sheet = "2018")
-temp.2 <- read_excel("data/lake-konnevesi/LakeKonnevesi_Temp.xlsx", sheet = "2019")
+temp.1 <- read_excel("data/lake-konnevesi/lake-konnevesi-temperature.xlsx", sheet = "2018")
+temp.2 <- read_excel("data/lake-konnevesi/lake-konnevesi-temperature.xlsx", sheet = "2019")
 
 temp.all <- bind_rows(temp.1, temp.2) %>% 
   mutate(jday = yday(date),

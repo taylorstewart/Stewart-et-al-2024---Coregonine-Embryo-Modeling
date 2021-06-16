@@ -10,7 +10,6 @@ library(lubridate)
 library(ggthemes)
 library(dplyr)
 library(readxl)
-library(zoo)
 library(gridExtra)
 library(grid)
 library(cowplot)
@@ -18,81 +17,96 @@ library(cowplot)
 
 #### LOAD TEMPERATURE DATA -----------------------------------------------------------------------
 
-temp.1 <- read_excel("data/lake-superior-thunder-bay/lake-superior-thunder-bay-temperature.xlsx", sheet = "2016")
-temp.2 <- read_excel("data/lake-superior-thunder-bay/lake-superior-thunder-bay-temperature.xlsx", sheet = "2017")
-temp.3 <- read_excel("data/lake-superior-thunder-bay/lake-superior-thunder-bay-temperature.xlsx", sheet = "2018")
+temp.1 <- read_excel("data/lake-annecy/lake-annecy-temperature.xlsx", sheet = "2005")
+temp.2 <- read_excel("data/lake-annecy/lake-annecy-temperature.xlsx", sheet = "2006")
 
-temp.all <- bind_rows(temp.1, temp.2, temp.3)
-rm(temp.1, temp.2, temp.3)
+temp.all <- bind_rows(temp.1, temp.2) %>% 
+  mutate(yday = yday(date))
+rm(temp.1, temp.2)
 
 ## 
 ggplot(temp.all, aes(x = date, y = temp.c)) + 
   geom_line() + theme_few() + 
   ylab('Water Temperature (°C)') + 
   scale_x_datetime(date_breaks = "1 month", date_labels =  "%b %d") + 
-  theme(axis.text.x = element_text(angle = 90, hjust = 1)) + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))  + 
   facet_wrap(~year, scales = "free_x")
 
 
 #### CALCULATE MEAN SPAWNING DATE ----------------------------------------------------------------
 
-mu.spawn <- temp.all %>% group_by(year) %>% 
-  filter(spawning == "y") %>% 
-  summarize(mu.spawn = as.Date(mean(date), format = "%Y-%m-%d")) %>% 
-  left_join(., temp.all, by = c("mu.spawn" = "date", "year")) %>% 
-  select(year, mu.spawn, temp.spawn = temp.c)
+mu.spawn <- data.frame(year = unique(temp.all$year),
+                       mu.spawn.yday = rep(yday(as.Date("2018-12-27")), length(unique(temp.all$year)))) %>% 
+  mutate(mu.spawn.date = as.Date(mu.spawn.yday, origin = paste0(year-2, "-12-31")))
+#mu.spawn <- read_excel("data/lake-annecy/lake-annecy-spawning.xlsx", sheet = "lake-annecy-spawning") %>% 
+#  filter(spawn.abundance > 0) %>% 
+#  group_by(year) %>% 
+#  summarize(mu.spawn.date = as.Date(weighted.mean(date, spawn.abundance), format = "%Y-%m-%d"),
+#            mu.spawn.temp = weighted.mean(temp.c, spawn.abundance, na.rm = TRUE)) %>% 
+#  mutate(mu.spawn.yday = yday(mu.spawn.date),
+#         mu.spawn.yday = ifelse(mu.spawn.yday < 30, mu.spawn.yday+365, mu.spawn.yday)) %>% 
+#  ungroup() %>% 
+#  summarize(mu.spawn = mean(mu.spawn.yday)) %>% 
+#  mutate(mu.spawn = ifelse(mu.spawn > 365, mu.spawn-365, mu.spawn)) %>% 
+#  pull()
 
 
 #### CALCULATE MEAN HATCHING DATE ----------------------------------------------------------------
 
-mu.hatch <- temp.all %>% group_by(year) %>% 
-  filter(hatching == "y") %>% 
-  summarize(mu.hatch = as.Date(mean(date), format = "%Y-%m-%d")) %>% 
-  left_join(., temp.all, by = c("mu.hatch" = "date", "year")) %>% 
-  select(year, mu.hatch, temp.hatch = temp.c)
-
-
-## Filter temp profiles by start and end dates
-
-temp.filter <- left_join(mu.spawn, mu.hatch) %>% 
-  left_join(temp.all, .) %>% 
+mu.hatch <- read_excel("data/lake-annecy/lake-annecy-hatching.xlsx", sheet = "lake-annecy-hatching") %>% 
   group_by(year) %>% 
-  filter(date >= mu.spawn, date <= mu.hatch) %>% 
-  mutate(ADD = cumsum(temp.c))
+  summarize(mu.hatch.date = as.Date(weighted.mean(date, hatch.abundance), format = "%Y-%m-%d")) %>% 
+  mutate(mu.hatch.yday = yday(mu.hatch.date))
 
-temp.ADD <- temp.filter %>% group_by(year) %>% 
-  filter(ADD == max(ADD))
+## Filter temp profiles by start and end dates, calculate daily degree-days
+temp.spawn <- temp.all %>% left_join(mu.spawn) %>%
+  group_by(year) %>% 
+  filter(yday >= mu.spawn.yday) %>% 
+  select(-mu.spawn.yday, -mu.spawn.date)
+temp.hatch <- temp.all %>% left_join(mu.hatch) %>% 
+  group_by(year) %>% 
+  filter(yday <= mu.hatch.yday) %>% 
+  select(-mu.hatch.yday, -mu.hatch.date)
+temp.inc <- bind_rows(temp.spawn, temp.hatch) %>% arrange(date)
 
-#### XXXXXXXXX -----------------------
+## Find ADD at hatch
+temp.ADD <- temp.inc %>% group_by(year) %>% 
+  mutate(ADD = cumsum(temp.c)) %>% 
+  filter(ADD == max(ADD)) %>% 
+  select(date, year, temp.c, ADD)
+
+
+#### EUROPEAN WHITEFISH MODELS -------------------------------------------------------------------
+
 ## Polynomial: y = a + bx + cx^2
 ## Semilog: log10(y) = log10(a) + log10(b)x + log10(c)x^2
 ## Antilog: 10^(log(y))
 
-## Colby and Brooke
-model.CB <- read_excel("data/model-structural-parameters.xlsx", sheet = "coefs") %>% 
-  filter(lake == "Pickeral Lake")
+## Eckmann 1987 (uses natural log)
+model.EC <- read_excel("data/model-structural-parameters.xlsx", sheet = "coefs") %>% 
+  filter(lake == "Lake Constance", morph == "littoral", source == "Eckmann (1987)")
 
 ## Take antilog from daily semilog output, accumulate across days
-model.CB.perc <- temp.all %>% left_join(mu.spawn) %>% 
+model.EC.perc <- temp.all %>% left_join(mu.spawn) %>% 
   group_by(year) %>% 
-  filter(date >= mu.spawn) %>% 
-  mutate(perc.day = (10^(model.CB$a + model.CB$b * temp.c + model.CB$c * temp.c^2))*100,
-         perc.cum = cumsum(perc.day)) %>% 
+  filter(date >= mu.spawn.date) %>% 
+  mutate(perc.day = (10^(model.EC$a + model.EC$b * temp.c + model.EC$c * temp.c^2))*100,
+         perc.cum = cumsum(perc.day),) %>% 
   filter(perc.cum <= 100) %>%
   mutate(ADD = cumsum(temp.c))
 
-model.CB.perc.max <- model.CB.perc %>% group_by(year) %>% 
+model.EC.perc.max <- model.EC.perc %>% group_by(year) %>% 
   filter(perc.cum == max(perc.cum)) %>% 
   select(date, year, temp.c, ADD) %>% 
-  mutate(model = "CB")
+  mutate(model = "EC")
+
 
 ## Stewart et al. 2021
-model.data.ST <- read_excel("/Users/taylor/SynologyDrive/Cisco-Climate-Change/Coregonine-Temp-Embryo/data/Coregonine-Temperature-Experiment-NA-Hatch.xlsx", sheet = "2020HatchingData") %>% 
-  filter(is.na(notes) | notes != "empty well", block != "A" | population != "superior") %>% 
+model.data.TLB <- read_excel("/Users/taylor/SynologyDrive/Cisco-Climate-Change/Coregonine-Temp-Embryo-EuropeanWhitefish/data/Coregonine-Temperature-Experiment-EuropeFrance-Hatch.xlsx", sheet = "hatching") %>% 
+  filter(population == "leman") %>% 
   mutate(eye = as.numeric(eye),
          hatch = as.numeric(hatch)) %>% 
   filter(!is.na(eye), !is.na(hatch), !is.na(dpf), hatch == 1, include.incubation == "y") %>% 
-  filter(population == "superior") %>% 
   rename(temp.c = temperature) %>%
   group_by(temp.c, dpf) %>% 
   summarize(n = n()) %>% ungroup() %>%
@@ -106,46 +120,45 @@ model.data.ST <- read_excel("/Users/taylor/SynologyDrive/Cisco-Climate-Change/Co
          log.dpf.recip = log10(dpf.recip))
 
 ## Fit Semilog Model
-model.ST <- lm(log.dpf.recip ~ temp.c + I(temp.c^2), data = model.data.ST)
+model.TLB <- lm(log.dpf.recip ~ temp.c + I(temp.c^2), data = model.data.TLB)
 
 ## Take antilog from daily semilog output, accumulate across days
-model.ST.perc <- temp.all %>% left_join(mu.spawn) %>% 
+model.TLB.perc <- temp.all %>% 
+  left_join(mu.spawn) %>% 
   group_by(year) %>% 
-  filter(date >= mu.spawn) %>% 
-  mutate(perc.day = (10^(coef(model.ST)[[1]] + coef(model.ST)[[2]] * temp.c + coef(model.ST)[[3]] * temp.c^2))*100,
+  filter(date >= mu.spawn.date) %>% 
+  mutate(perc.day = (10^(coef(model.TLB)[[1]] + coef(model.TLB)[[2]] * temp.c))*100,
          perc.cum = cumsum(perc.day),) %>% 
   filter(perc.cum <= 100) %>%
   mutate(ADD = cumsum(temp.c))
 
-model.ST.perc.max <- model.ST.perc %>% group_by(year) %>% 
+model.TLB.perc.max <- model.TLB.perc %>% group_by(year) %>% 
   filter(perc.cum == max(perc.cum)) %>% 
   select(date, year, temp.c, ADD) %>% 
-  mutate(model = "ST")
+  mutate(model = "TLB")
 
 
 #### COMBINE ALL MODEL HATCHING ESTIMATES --------------------------------------------------------
 
-model.hatching.all <- mu.hatch %>% 
-  rename(date = "mu.hatch", temp.c = "temp.hatch") %>% 
-  left_join(temp.filter) %>% 
-  select(date, year, temp.c, ADD) %>% 
+model.hatching.all <- temp.ADD %>% 
   mutate(model = "EP") %>% 
-  bind_rows(., model.CB.perc.max, model.ST.perc.max) %>% 
-  mutate(model = factor(model, ordered = TRUE, levels = c("EP", "ST", "CB")),
-         jday = yday(date))
+  bind_rows(., model.EC.perc.max, model.TLB.perc.max) %>% 
+  mutate(model = factor(model, ordered = TRUE, levels = c("EP", "TLB", "EC")),
+         yday = yday(date))
 
 
 #### VISUALIZATIONS ------------------------------------------------------------------------------
 
-
 ggplot(temp.all, aes(x = date, y = temp.c)) + 
   geom_line(size = 0.8) +
-  geom_vline(data = mu.spawn, aes(xintercept = as.POSIXct(mu.spawn)), color = "gray25", linetype = "dashed", show.legend = FALSE) +
+  geom_vline(data = data.frame(year = unique(temp.all$year), 
+                               date = temp.inc %>% group_by(year) %>% slice(1) %>% pull(date)),
+             aes(xintercept = date), color = "gray25", linetype = "dashed", show.legend = FALSE) +
   geom_point(data = model.hatching.all, aes(x = as.POSIXct(date), y = temp.c, fill = model, shape = model), size = 3) +
   scale_shape_manual("", values = c(21, 22, 23),
-                    labels = c("Empirical Hatching  ", "Stewart et al., 2021  ", "Colby & Brooke, 1973")) +
+                     labels = c("Observed Hatching  ", "Unpublished Thonon Data  ", "Eckmann, 1987")) +
   scale_fill_manual("", values = c("lightsalmon", "cornflowerblue", "forestgreen"),
-                    labels = c("Empirical Hatching  ", "Stewart et al., 2021  ", "Colby & Brooke, 1973")) +
+                    labels = c("Observed Hatching  ", "Unpublished Thonon Data  ", "Eckmann, 1987")) +
   scale_x_datetime(date_breaks = "1 month", date_labels =  "%b %d") + 
   labs(y = "Water Temperature (°C)") + 
   theme_few() + 
@@ -159,15 +172,15 @@ ggplot(temp.all, aes(x = date, y = temp.c)) +
         panel.spacing = unit(1, "lines")) + 
   facet_wrap(~year, scales = "free_x")
 
-ggsave("figures/LakeSuperior-TB-ModelComparison.png", height = 6.5, width = 14, dpi = 300)
+ggsave("figures/lake-annecy/lake-annecy-model-comparison-temp.png", height = 5.5, width = 9.5, dpi = 300)
 
 
 plot.add <- ggplot(model.hatching.all, aes(x = factor(year), y = ADD, group = model)) +
   geom_point(aes(fill = model, shape = model), size = 3) + 
   scale_shape_manual("", values = c(21, 22, 23),
-                     labels = c("Empirical Hatching  ", "Stewart et al., 2021  ", "Colby & Brooke, 1973")) +
+                     labels = c("Observed Hatching  ", "Unpublished Thonon Data  ", "Eckmann, 1987")) +
   scale_fill_manual("", values = c("lightsalmon", "cornflowerblue", "forestgreen"),
-                    labels = c("Empirical Hatching  ", "Stewart et al., 2021  ", "Colby & Brooke, 1973")) +
+                    labels = c("Observed Hatching  ", "Unpublished Thonon Data  ", "Eckmann, 1987")) +
   labs(y = "Degree-days") +
   theme_few() + 
   theme(axis.text.x = element_text(angle = 45, hjust = 1),
@@ -179,12 +192,12 @@ plot.add <- ggplot(model.hatching.all, aes(x = factor(year), y = ADD, group = mo
         strip.text = element_text(size = 12),
         panel.spacing = unit(1, "lines"))
 
-plot.date <- ggplot(model.hatching.all, aes(x = factor(year), y = jday, group = model)) +
+plot.date <- ggplot(model.hatching.all, aes(x = factor(year), y = yday, group = model)) +
   geom_point(aes(fill = model, shape = model), size = 3) + 
   scale_shape_manual("", values = c(21, 22, 23),
-                     labels = c("Empirical Hatching  ", "Stewart et al., 2021  ", "Colby & Brooke, 1973")) +
+                     labels = c("Observed Hatching  ", "Unpublished Thonon Data  ", "Eckmann, 1987")) +
   scale_fill_manual("", values = c("lightsalmon", "cornflowerblue", "forestgreen"),
-                    labels = c("Empirical Hatching  ", "Stewart et al., 2021  ", "Colby & Brooke, 1973")) +
+                    labels = c("Observed Hatching  ", "Unpublished Thonon Data  ", "Eckmann, 1987")) +
   labs(y = "Julian Date") +
   theme_few() + 
   theme(axis.text.x = element_text(angle = 45, hjust = 1),
@@ -212,5 +225,5 @@ plot.all <- grid.arrange(
   heights = c(0.05, 1.0)
 )
 
-ggsave("figures/LakeSuperior-TB-ADD-Jday.png", plot = plot.all, width = 8, height = 5, dpi = 300)
+ggsave("figures/lake-annecy/lake-annecy-model-comparison-point.png", plot = plot.all, width = 8, height = 5, dpi = 300)
 
