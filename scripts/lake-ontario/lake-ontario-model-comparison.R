@@ -17,18 +17,29 @@ library(cowplot)
 
 #### LOAD TEMPERATURE DATA -----------------------------------------------------------------------
 
-temp <- read_excel("data/lake-ontario/lake-ontario-temp-embayments-bottom.xlsx", sheet = "chaumont-bay") %>% 
-  group_by(date, year) %>% 
-  summarize(temp.c = mean(temp.c)) %>% 
-  ungroup() %>% 
-  group_by(year) %>% 
-  mutate(month = month(date),
-         day = day(date),
-         yday = yday(date)) %>% 
-  filter(month != 6| day < 2)
+temp.1 <- read_excel("data/lake-ontario/lake-ontario-temp-oswego-river.xlsx", sheet = "2015")
+temp.2 <- read_excel("data/lake-ontario/lake-ontario-temp-oswego-river.xlsx", sheet = "2016")
+temp.3 <- read_excel("data/lake-ontario/lake-ontario-temp-oswego-river.xlsx", sheet = "2017")
+temp.4 <- read_excel("data/lake-ontario/lake-ontario-temp-oswego-river.xlsx", sheet = "2018")
+temp.5 <- read_excel("data/lake-ontario/lake-ontario-temp-oswego-river.xlsx", sheet = "2019")
+temp.6 <- read_excel("data/lake-ontario/lake-ontario-temp-oswego-river.xlsx", sheet = "2020")
+
+#temp <- read_excel("data/lake-ontario/lake-ontario-temp-embayments-bottom.xlsx", sheet = "chaumont-bay") %>% 
+#  group_by(date, year) %>% 
+#  summarize(temp.c = mean(temp.c)) %>% 
+#  ungroup() %>% 
+#  group_by(year) %>% 
+#  mutate(month = month(date),
+#         day = day(date),
+#         yday = yday(date)) %>% 
+#  filter(month != 6| day < 2)
+
+temp.all <- bind_rows(temp.1, temp.2, temp.3, temp.4, temp.5, temp.6) %>% 
+  mutate(yday = yday(date))
+rm(temp.1, temp.2, temp.3, temp.4, temp.5, temp.6)
 
 ## 
-ggplot(temp, aes(x = date, y = temp.c)) + 
+ggplot(temp.all, aes(x = date, y = temp.c)) + 
   geom_line() + theme_few() + 
   ylab('Water Temperature (°C)') + 
   scale_x_datetime(date_breaks = "1 month", date_labels =  "%b %d") + 
@@ -39,11 +50,11 @@ ggplot(temp, aes(x = date, y = temp.c)) +
 #### CALCULATE MEAN SPAWNING DATE ----------------------------------------------------------------
 
 mu.spawn <- read_excel("data/lake-ontario/lake-ontario-spawning.xlsx", sheet = "lake-ontario-spawning") %>% 
-  filter(date > "2006-11-10", prop.ripe > 0) %>% 
+  filter(year != 2008, year != 2010) %>% 
   group_by(year) %>% 
   summarize(mu.spawn.date = as.Date(weighted.mean(date, prop.ripe), format = "%Y-%m-%d")) %>% 
   mutate(mu.spawn.yday = yday(mu.spawn.date)) %>% 
-  summarize(mu.spawn = mean(mu.spawn.yday)) %>% pull()
+  summarize(mu.spawn = as.integer(mean(mu.spawn.yday))) %>% pull()
   
 
 #### CALCULATE MEAN HATCHING DATE ----------------------------------------------------------------
@@ -52,13 +63,13 @@ mu.hatch <- read_excel("data/lake-ontario/lake-ontario-hatching.xlsx", sheet = "
   group_by(year) %>% 
   summarize(mu.hatch.date = as.Date(weighted.mean(date, mean.density), format = "%Y-%m-%d")) %>% 
   mutate(mu.hatch.yday = yday(mu.hatch.date)) %>% 
-  summarize(mu.hatch = mean(mu.hatch.yday)) %>% pull()
+  summarize(mu.hatch = as.integer(mean(mu.hatch.yday))) %>% pull()
 
 
 ## Filter temp profiles by start and end dates
 
-temp.spawn <- temp %>% filter(yday >= mu.spawn)
-temp.hatch <- temp %>% filter(yday <= mu.hatch)
+temp.spawn <- temp.all %>% group_by(year) %>% filter(yday >= mu.spawn)
+temp.hatch <- temp.all %>% group_by(year) %>% filter(yday <= mu.hatch)
 temp.inc <- bind_rows(temp.spawn, temp.hatch) 
 
 temp.ADD <- temp.inc %>% group_by(year) %>% 
@@ -77,7 +88,8 @@ model.CB <- read_excel("data/model-structural-parameters.xlsx", sheet = "coefs")
   filter(lake == "Pickeral Lake")
 
 ## Take antilog from daily semilog output, accumulate across days
-model.CB.perc <- temp %>%  
+model.CB.perc <- temp.all %>%  
+  group_by(year) %>% 
   filter(date >= as.Date(mu.spawn, origin = paste0(year-2, "-12-31"))) %>% 
   mutate(perc.day = (10^(model.CB$a + model.CB$b * temp.c + model.CB$c * temp.c^2))*100,
          perc.cum = cumsum(perc.day)) %>% 
@@ -95,7 +107,8 @@ model.ontario <- read_excel("data/model-structural-parameters.xlsx", sheet = "co
   filter(lake == "Lake Ontario")
 
 ## Take antilog from daily semilog output, accumulate across days
-model.ontario.perc <- temp %>% 
+model.ontario.perc <- temp.all %>% 
+  group_by(year) %>% 
   filter(date >= as.Date(mu.spawn, origin = paste0(year-2, "-12-31"))) %>% 
   mutate(perc.day = (10^(model.ontario$a + model.ontario$b * temp.c + model.ontario$c * temp.c^2))*100,
          perc.cum = cumsum(perc.day),) %>% 
@@ -119,9 +132,11 @@ model.hatching.all <- temp.ADD %>%
 
 #### VISUALIZATIONS ------------------------------------------------------------------------------xs
 
-ggplot(temp, aes(x = date, y = temp.c)) + 
+ggplot(temp.all, aes(x = date, y = temp.c)) + 
   geom_line(size = 0.8) +
-  geom_vline(data = temp.inc[1,1], aes(xintercept = date), color = "gray25", linetype = "dashed", show.legend = FALSE) +
+  geom_vline(data = data.frame(year = unique(temp.all$year), 
+                               date = temp.inc %>% group_by(year) %>% slice(1) %>% pull(date)),
+             aes(xintercept = date), color = "gray25", linetype = "dashed", show.legend = FALSE) +
   geom_point(data = model.hatching.all, aes(x = as.POSIXct(date), y = temp.c, fill = model, shape = model), size = 3) +
   scale_shape_manual("", values = c(21, 22, 23),
                      labels = c("Observed Hatching  ", "Stewart et al., 2021  ", "Colby & Brooke, 1973")) +
@@ -140,7 +155,7 @@ ggplot(temp, aes(x = date, y = temp.c)) +
         panel.spacing = unit(1, "lines")) + 
   facet_wrap(~year, scales = "free_x")
 
-ggsave("figures/lake-ontario-model-comparison.png", height = 6.5, width = 14, dpi = 300)
+ggsave("figures/lake-ontario/lake-ontario-model-comparison-time.png", height = 9, width = 15, dpi = 300)
 
 
 plot.add <- ggplot(model.hatching.all, aes(x = factor(year), y = ADD, group = model)) +

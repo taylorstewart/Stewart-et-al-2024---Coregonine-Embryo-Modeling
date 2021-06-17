@@ -17,8 +17,10 @@ library(cowplot)
 
 #### LOAD TEMPERATURE DATA -----------------------------------------------------------------------
 
-temp.1 <- read_excel("data/lake-annecy/lake-annecy-temperature.xlsx", sheet = "2005")
-temp.2 <- read_excel("data/lake-annecy/lake-annecy-temperature.xlsx", sheet = "2006")
+temp.1 <- read_excel("data/lake-annecy/lake-annecy-temperature.xlsx", sheet = "2005") %>% 
+  filter(date <= "2005-05-01")
+temp.2 <- read_excel("data/lake-annecy/lake-annecy-temperature.xlsx", sheet = "2006") %>% 
+  filter(date >= "2005-12-15", date <= "2006-05-01")
 
 temp.all <- bind_rows(temp.1, temp.2) %>% 
   mutate(yday = yday(date))

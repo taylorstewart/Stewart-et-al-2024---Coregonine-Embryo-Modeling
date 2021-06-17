@@ -22,7 +22,8 @@ temp.1 <- read_excel("data/lake-superior-thunder-bay/lake-superior-thunder-bay-t
 temp.2 <- read_excel("data/lake-superior-thunder-bay/lake-superior-thunder-bay-temperature.xlsx", sheet = "2017")
 temp.3 <- read_excel("data/lake-superior-thunder-bay/lake-superior-thunder-bay-temperature.xlsx", sheet = "2018")
 
-temp.all <- bind_rows(temp.1, temp.2, temp.3)
+temp.all <- bind_rows(temp.1, temp.2, temp.3) %>% 
+  mutate(yday = yday(date))
 rm(temp.1, temp.2, temp.3)
 
 ## 
@@ -46,6 +47,11 @@ mu.spawn <- read_excel("data/lake-superior-thunder-bay/lake-superior-thunder-bay
 
 #### CALCULATE MEAN HATCHING DATE ----------------------------------------------------------------
 
+mu.hatch <- read_excel("data/lake-superior-apostle-islands/lake-superior-apostle-islands-hatching.xlsx", sheet = "lake-superior-apostle-hatching") %>% 
+  select(year, mu.hatch.date = mean.date) %>% 
+  mutate(mu.hatch.yday = yday(mu.hatch.date)) %>% 
+  summarize(mu.hatch = mean(mu.hatch.yday)) %>% 
+  pull()
 
 
 ## Filter temp profiles by start and end dates
@@ -70,9 +76,9 @@ model.CB <- read_excel("data/model-structural-parameters.xlsx", sheet = "coefs")
   filter(lake == "Pickeral Lake")
 
 ## Take antilog from daily semilog output, accumulate across days
-model.CB.perc <- temp.all %>% left_join(mu.spawn) %>% 
+model.CB.perc <- temp.all %>%
   group_by(year) %>% 
-  filter(date >= mu.spawn) %>% 
+  filter(date >= as.Date(mu.spawn, origin = paste0(year-2, "-12-31"))) %>% 
   mutate(perc.day = (10^(model.CB$a + model.CB$b * temp.c + model.CB$c * temp.c^2))*100,
          perc.cum = cumsum(perc.day)) %>% 
   filter(perc.cum <= 100) %>%
@@ -84,32 +90,14 @@ model.CB.perc.max <- model.CB.perc %>% group_by(year) %>%
   mutate(model = "CB")
 
 ## Stewart et al. 2021
-model.data.ST <- read_excel("/Users/taylor/SynologyDrive/Cisco-Climate-Change/Coregonine-Temp-Embryo/data/Coregonine-Temperature-Experiment-NA-Hatch.xlsx", sheet = "2020HatchingData") %>% 
-  filter(is.na(notes) | notes != "empty well", block != "A" | population != "superior") %>% 
-  mutate(eye = as.numeric(eye),
-         hatch = as.numeric(hatch)) %>% 
-  filter(!is.na(eye), !is.na(hatch), !is.na(dpf), hatch == 1, include.incubation == "y") %>% 
-  filter(population == "superior") %>% 
-  rename(temp.c = temperature) %>%
-  group_by(temp.c, dpf) %>% 
-  summarize(n = n()) %>% ungroup() %>%
-  arrange(temp.c, dpf) %>% 
-  group_by(temp.c) %>% 
-  mutate(total.n = sum(n),
-         prop.n = n/total.n,
-         cum.prop = cumsum(prop.n)) %>% 
-  filter(abs(cum.prop - 0.5) == min(abs(cum.prop - 0.5))) %>% 
-  mutate(dpf.recip = dpf^-1,
-         log.dpf.recip = log10(dpf.recip))
-
-## Fit Semilog Model
-model.ST <- lm(log.dpf.recip ~ temp.c + I(temp.c^2), data = model.data.ST)
+model.superior <- read_excel("data/model-structural-parameters.xlsx", sheet = "coefs") %>% 
+  filter(lake == "Lake Superior")
 
 ## Take antilog from daily semilog output, accumulate across days
-model.ST.perc <- temp.all %>% left_join(mu.spawn) %>% 
+model.ST.perc <- temp.all %>%
   group_by(year) %>% 
-  filter(date >= mu.spawn) %>% 
-  mutate(perc.day = (10^(coef(model.ST)[[1]] + coef(model.ST)[[2]] * temp.c + coef(model.ST)[[3]] * temp.c^2))*100,
+  filter(date >= as.Date(mu.spawn, origin = paste0(year-2, "-12-31"))) %>% 
+  mutate(perc.day = (10^(model.superior$a + model.superior$b * temp.c + model.superior$c * temp.c^2))*100,
          perc.cum = cumsum(perc.day),) %>% 
   filter(perc.cum <= 100) %>%
   mutate(ADD = cumsum(temp.c))
@@ -122,27 +110,25 @@ model.ST.perc.max <- model.ST.perc %>% group_by(year) %>%
 
 #### COMBINE ALL MODEL HATCHING ESTIMATES --------------------------------------------------------
 
-model.hatching.all <- mu.hatch %>% 
-  rename(date = "mu.hatch", temp.c = "temp.hatch") %>% 
-  left_join(temp.filter) %>% 
-  select(date, year, temp.c, ADD) %>% 
+model.hatching.all <- temp.ADD %>% 
   mutate(model = "EP") %>% 
-  bind_rows(., model.CB.perc.max, model.ST.perc.max) %>% 
+  bind_rows(., model.ST.perc.max, model.CB.perc.max) %>% 
   mutate(model = factor(model, ordered = TRUE, levels = c("EP", "ST", "CB")),
          jday = yday(date))
 
 
 #### VISUALIZATIONS ------------------------------------------------------------------------------
 
-
 ggplot(temp.all, aes(x = date, y = temp.c)) + 
   geom_line(size = 0.8) +
-  geom_vline(data = mu.spawn, aes(xintercept = as.POSIXct(mu.spawn)), color = "gray25", linetype = "dashed", show.legend = FALSE) +
+  geom_vline(data = data.frame(year = unique(temp.all$year), 
+                               date = temp.inc %>% group_by(year) %>% slice(1) %>% pull(date)),
+             aes(xintercept = date), color = "gray25", linetype = "dashed", show.legend = FALSE) +
   geom_point(data = model.hatching.all, aes(x = as.POSIXct(date), y = temp.c, fill = model, shape = model), size = 3) +
   scale_shape_manual("", values = c(21, 22, 23),
-                    labels = c("Empirical Hatching  ", "Stewart et al., 2021  ", "Colby & Brooke, 1973")) +
+                     labels = c("Observed Hatching  ", "Stewart et al., 2021  ", "Colby & Brooke, 1973")) +
   scale_fill_manual("", values = c("lightsalmon", "cornflowerblue", "forestgreen"),
-                    labels = c("Empirical Hatching  ", "Stewart et al., 2021  ", "Colby & Brooke, 1973")) +
+                    labels = c("Observed Hatching  ", "Stewart et al., 2021  ", "Colby & Brooke, 1973")) +
   scale_x_datetime(date_breaks = "1 month", date_labels =  "%b %d") + 
   labs(y = "Water Temperature (°C)") + 
   theme_few() + 
@@ -156,15 +142,15 @@ ggplot(temp.all, aes(x = date, y = temp.c)) +
         panel.spacing = unit(1, "lines")) + 
   facet_wrap(~year, scales = "free_x")
 
-ggsave("figures/LakeSuperior-TB-ModelComparison.png", height = 6.5, width = 14, dpi = 300)
+ggsave("figures/lake-superior-thunder-bay/lake-superior-thunder-bay-model-comparison-temp.png", height = 6.5, width = 14, dpi = 300)
 
 
 plot.add <- ggplot(model.hatching.all, aes(x = factor(year), y = ADD, group = model)) +
   geom_point(aes(fill = model, shape = model), size = 3) + 
   scale_shape_manual("", values = c(21, 22, 23),
-                     labels = c("Empirical Hatching  ", "Stewart et al., 2021  ", "Colby & Brooke, 1973")) +
+                     labels = c("Observed Hatching  ", "Stewart et al., 2021  ", "Colby & Brooke, 1973")) +
   scale_fill_manual("", values = c("lightsalmon", "cornflowerblue", "forestgreen"),
-                    labels = c("Empirical Hatching  ", "Stewart et al., 2021  ", "Colby & Brooke, 1973")) +
+                    labels = c("Observed Hatching  ", "Stewart et al., 2021  ", "Colby & Brooke, 1973")) +
   labs(y = "Degree-days") +
   theme_few() + 
   theme(axis.text.x = element_text(angle = 45, hjust = 1),
@@ -179,9 +165,9 @@ plot.add <- ggplot(model.hatching.all, aes(x = factor(year), y = ADD, group = mo
 plot.date <- ggplot(model.hatching.all, aes(x = factor(year), y = jday, group = model)) +
   geom_point(aes(fill = model, shape = model), size = 3) + 
   scale_shape_manual("", values = c(21, 22, 23),
-                     labels = c("Empirical Hatching  ", "Stewart et al., 2021  ", "Colby & Brooke, 1973")) +
+                     labels = c("Observed Hatching  ", "Stewart et al., 2021  ", "Colby & Brooke, 1973")) +
   scale_fill_manual("", values = c("lightsalmon", "cornflowerblue", "forestgreen"),
-                    labels = c("Empirical Hatching  ", "Stewart et al., 2021  ", "Colby & Brooke, 1973")) +
+                    labels = c("Observed Hatching  ", "Stewart et al., 2021  ", "Colby & Brooke, 1973")) +
   labs(y = "Julian Date") +
   theme_few() + 
   theme(axis.text.x = element_text(angle = 45, hjust = 1),
@@ -209,5 +195,5 @@ plot.all <- grid.arrange(
   heights = c(0.05, 1.0)
 )
 
-ggsave("figures/LakeSuperior-TB-ADD-Jday.png", plot = plot.all, width = 8, height = 5, dpi = 300)
+ggsave("figures/lake-superior-thunder-bay/lake-superior-thunder-bay-model-comparison-point.png", plot = plot.all, width = 8, height = 5, dpi = 300)
 
