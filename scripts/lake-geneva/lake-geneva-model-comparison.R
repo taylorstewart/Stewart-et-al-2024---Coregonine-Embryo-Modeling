@@ -45,7 +45,6 @@ mu.spawn <- read_excel("data/lake-geneva/lake-geneva-spawning.xlsx", sheet = "la
             mu.spawn.temp = weighted.mean(temp.c, spawn.abundance, na.rm = TRUE)) %>% 
   mutate(mu.spawn.yday = yday(mu.spawn.date),
          mu.spawn.yday = ifelse(mu.spawn.yday < 30, mu.spawn.yday+365, mu.spawn.yday)) %>% 
-  ungroup() %>% 
   summarize(mu.spawn = mean(mu.spawn.yday)) %>% 
   mutate(mu.spawn = ifelse(mu.spawn > 365, mu.spawn-365, mu.spawn)) %>% 
   pull()
@@ -65,12 +64,12 @@ if(mu.spawn > 0 & mu.spawn < 30) {
   temp.inc <- bind_rows(temp.spawn, temp.hatch) 
 }
 
+## Find ADD at hatch
 #temp.ADD <- temp.inc %>% group_by(year) %>% 
 #  mutate(ADD = cumsum(temp.c)) %>% 
 #  filter(ADD == max(ADD)) %>% 
 #  select(date, year, temp.c, ADD)
 
-## Find ADD at hatch
 
 
 #### EUROPEAN WHITEFISH MODELS -------------------------------------------------------------------

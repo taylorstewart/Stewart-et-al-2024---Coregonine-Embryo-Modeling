@@ -36,32 +36,29 @@ ggplot(temp.all, aes(x = date, y = temp.c)) +
 
 #### CALCULATE MEAN SPAWNING DATE ----------------------------------------------------------------
 
-mu.spawn <- temp.all %>% group_by(year) %>% 
-  filter(spawning == "y") %>% 
-  summarize(mu.spawn = as.Date(mean(date), format = "%Y-%m-%d")) %>% 
-  left_join(., temp.all, by = c("mu.spawn" = "date", "year")) %>% 
-  select(year, mu.spawn, temp.spawn = temp.c)
+mu.spawn <- read_excel("data/lake-superior-thunder-bay/lake-superior-thunder-bay-spawning.xlsx", sheet = "lake-superior-thunder-bay-spawn") %>% 
+  group_by(year) %>% 
+  summarize(mu.spawn.date = as.Date(weighted.mean(date, spawn.abundance), format = "%Y-%m-%d")) %>% 
+  mutate(mu.spawn.yday = yday(mu.spawn.date)) %>% 
+  summarize(mu.spawn = mean(mu.spawn.yday)) %>% 
+  pull()
 
 
 #### CALCULATE MEAN HATCHING DATE ----------------------------------------------------------------
 
-mu.hatch <- temp.all %>% group_by(year) %>% 
-  filter(hatching == "y") %>% 
-  summarize(mu.hatch = as.Date(mean(date), format = "%Y-%m-%d")) %>% 
-  left_join(., temp.all, by = c("mu.hatch" = "date", "year")) %>% 
-  select(year, mu.hatch, temp.hatch = temp.c)
 
 
 ## Filter temp profiles by start and end dates
+temp.spawn <- temp.all %>% group_by(year) %>% filter(yday >= mu.spawn)
+temp.hatch <- temp.all %>% group_by(year) %>% filter(yday <= mu.hatch)
+temp.inc <- bind_rows(temp.spawn, temp.hatch) 
 
-temp.filter <- left_join(mu.spawn, mu.hatch) %>% 
-  left_join(temp.all, .) %>% 
-  group_by(year) %>% 
-  filter(date >= mu.spawn, date <= mu.hatch) %>% 
-  mutate(ADD = cumsum(temp.c))
+## Find ADD at hatch
+temp.ADD <- temp.inc %>% group_by(year) %>% 
+  mutate(ADD = cumsum(temp.c)) %>% 
+  filter(ADD == max(ADD)) %>% 
+  select(date, year, temp.c, ADD)
 
-temp.ADD <- temp.filter %>% group_by(year) %>% 
-  filter(ADD == max(ADD))
 
 #### XXXXXXXXX -----------------------
 ## Polynomial: y = a + bx + cx^2
