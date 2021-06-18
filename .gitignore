@@ -41,6 +41,6 @@ vignettes/*.pdf
 # .DS_Store
 .DS_Store
 data/.DS_Store
-raw_data/
+raw-data/
 data/climate-simulations
 manuscript/
