@@ -18,22 +18,22 @@ library(cowplot)
 
 #### LOAD TEMPERATURE DATA -----------------------------------------------------------------------
 
-temp.1 <- read_excel("data/lake-superior-thunder-bay/lake-superior-thunder-bay-temperature.xlsx", sheet = "2016")
-temp.2 <- read_excel("data/lake-superior-thunder-bay/lake-superior-thunder-bay-temperature.xlsx", sheet = "2017")
-temp.3 <- read_excel("data/lake-superior-thunder-bay/lake-superior-thunder-bay-temperature.xlsx", sheet = "2018")
+temp.1 <- read_excel("data/lake-superior-thunder-bay/lake-superior-thunder-bay-temperature.xlsx", sheet = "2018")
+temp.2 <- read_excel("data/lake-superior-thunder-bay/lake-superior-thunder-bay-temperature.xlsx", sheet = "2019")
+temp.3 <- read_excel("data/lake-superior-thunder-bay/lake-superior-thunder-bay-temperature.xlsx", sheet = "2020")
+temp.4 <- read_excel("data/lake-superior-thunder-bay/lake-superior-thunder-bay-temperature.xlsx", sheet = "2021")
 
-temp.all <- bind_rows(temp.1, temp.2, temp.3) %>% 
+temp.all <- bind_rows(temp.1, temp.2, temp.3, temp.4) %>% 
   mutate(yday = yday(date))
-rm(temp.1, temp.2, temp.3)
+rm(temp.1, temp.2, temp.3, temp.4)
 
 ## 
 ggplot(temp.all, aes(x = date, y = temp.c)) + 
   geom_line() + theme_few() + 
-  ylab('Water Temperature (°C)') + 
+  labs(y = 'Water Temperature (°C)', x = "") + 
   scale_x_datetime(date_breaks = "1 month", date_labels =  "%b %d") + 
   theme(axis.text.x = element_text(angle = 90, hjust = 1)) + 
   facet_wrap(~year, scales = "free_x")
-
 
 #### CALCULATE MEAN SPAWNING DATE ----------------------------------------------------------------
 
@@ -142,7 +142,7 @@ ggplot(temp.all, aes(x = date, y = temp.c)) +
         panel.spacing = unit(1, "lines")) + 
   facet_wrap(~year, scales = "free_x")
 
-ggsave("figures/lake-superior-thunder-bay/lake-superior-thunder-bay-model-comparison-temp.png", height = 6.5, width = 14, dpi = 300)
+ggsave("figures/lake-superior-thunder-bay/lake-superior-thunder-bay-model-comparison-temp.png", height = 7, width = 11, dpi = 300)
 
 
 plot.add <- ggplot(model.hatching.all, aes(x = factor(year), y = ADD, group = model)) +
