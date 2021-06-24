@@ -16,6 +16,8 @@ rm(list = ls(all.names = TRUE))
 
 library(dplyr)
 library(data.table)
+library(stringr)
+library(lubridate)
 
 
 ### CREATE A LIST OF FILES ----------------------------------------------------------------------
@@ -41,9 +43,8 @@ data.summary <- data %>% group_by(date) %>%
          year = year(date),
          month = month(date),
          day = day(date)) %>% 
-  filter(yday > 240 | yday < 190) %>% 
-  mutate(year = ifelse(yday > 239, year+1, year),
-         depth.m = 13) %>% 
+  mutate(depth.m = 13) %>% 
+  filter(year != 2013) %>% 
   select(date, year, month, day, depth.m, temp.c)
 
 

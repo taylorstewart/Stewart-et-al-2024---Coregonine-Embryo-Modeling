@@ -10,12 +10,11 @@ library(readxl)
 
 
 #### LAKE SUPERIOR CISCO -------------------------------------------------------------------------
-model.data.superior <- read_excel("/Users/taylor/SynologyDrive/Cisco-Climate-Change/Coregonine-Temp-Embryo/data/Coregonine-Temperature-Experiment-NA-Hatch.xlsx", sheet = "hatching") %>% 
+model.data.superior <- read_excel("/Users/taylor/SynologyDrive/Cisco-Climate-Change/Coregonine-Temp-Embryo/data/Coregonine-Temperature-Experiment-NA-Hatch.xlsx", sheet = "hatching", skip = 52) %>% 
+  filter(population == "superior") %>% 
   mutate(eye = as.numeric(eye),
          hatch = as.numeric(hatch)) %>% 
-  filter(population == "superior", is.na(notes) | notes != "empty well", 
-         block != "A" | population != "superior",!is.na(eye), !is.na(hatch), 
-         !is.na(dpf), hatch == 1, include.incubation == "y") %>% 
+  filter(!is.na(eye), !is.na(hatch), !is.na(dpf), hatch == 1, include_incubation == "y") %>% 
   rename(temp.c = temperature) %>%
   group_by(temp.c, dpf) %>% 
   summarize(n = n()) %>% ungroup() %>%
@@ -34,11 +33,11 @@ summary(model.superior)
 
 
 #### LAKE ONTARIO CISCO --------------------------------------------------------------------------
-model.data.ontario <- read_excel("/Users/taylor/SynologyDrive/Cisco-Climate-Change/Coregonine-Temp-Embryo/data/Coregonine-Temperature-Experiment-NA-Hatch.xlsx", sheet = "hatching") %>% 
+model.data.ontario <- read_excel("/Users/taylor/SynologyDrive/Cisco-Climate-Change/Coregonine-Temp-Embryo/data/Coregonine-Temperature-Experiment-NA-Hatch.xlsx", sheet = "hatching", skip = 52) %>% 
   filter(population == "ontario") %>% 
   mutate(eye = as.numeric(eye),
          hatch = as.numeric(hatch)) %>% 
-  filter(!is.na(eye), !is.na(hatch), !is.na(dpf), hatch == 1, include.incubation == "y") %>% 
+  filter(!is.na(eye), !is.na(hatch), !is.na(dpf), hatch == 1, include_incubation == "y") %>% 
   rename(temp.c = temperature) %>%
   group_by(temp.c, dpf) %>% 
   summarize(n = n()) %>% ungroup() %>%
@@ -57,11 +56,11 @@ summary(model.ontario)
 
 
 #### LAKE KONNEVESI VENDACE ----------------------------------------------------------------------
-model.data.konnevesi.vendace <- read_excel("/Users/taylor/SynologyDrive/Cisco-Climate-Change/Coregonine-Temp-Embryo/data/Coregonine-Temperature-Experiment-FI-Hatch.xlsx", sheet = "hatching") %>% 
+model.data.konnevesi.vendace <- read_excel("/Users/taylor/SynologyDrive/Cisco-Climate-Change/Coregonine-Temp-Embryo/data/Coregonine-Temperature-Experiment-FI-Hatch.xlsx", sheet = "hatching", skip = 48) %>% 
   mutate(eye = as.numeric(eye),
          hatch = as.numeric(hatch)) %>% 
   filter(species == "albula", !is.na(eye), !is.na(hatch), !is.na(dpf), 
-         hatch == 1, include.incubation == "y") %>% 
+         hatch == 1, include_incubation == "y") %>% 
   rename(temp.c = temperature) %>%
   group_by(temp.c, dpf) %>% 
   summarize(n = n()) %>% ungroup() %>%
@@ -80,11 +79,11 @@ summary(model.konnevesi.vendace)
 
 
 #### LAKE KONNEVESI EUROPEAN WHITEFISH -----------------------------------------------------------
-model.data.konnevesi.whitefish <- read_excel("/Users/taylor/SynologyDrive/Cisco-Climate-Change/Coregonine-Temp-Embryo/data/Coregonine-Temperature-Experiment-FI-Hatch.xlsx", sheet = "hatching") %>% 
+model.data.konnevesi.whitefish <- read_excel("/Users/taylor/SynologyDrive/Cisco-Climate-Change/Coregonine-Temp-Embryo/data/Coregonine-Temperature-Experiment-FI-Hatch.xlsx", sheet = "hatching", skip = 48) %>% 
   mutate(eye = as.numeric(eye),
          hatch = as.numeric(hatch)) %>% 
   filter(species == "lavaretus", !is.na(eye), !is.na(hatch), !is.na(dpf), 
-         hatch == 1, include.incubation == "y") %>% 
+         hatch == 1, include_incubation == "y") %>% 
   rename(temp.c = temperature) %>%
   group_by(temp.c, dpf) %>% 
   summarize(n = n()) %>% ungroup() %>%

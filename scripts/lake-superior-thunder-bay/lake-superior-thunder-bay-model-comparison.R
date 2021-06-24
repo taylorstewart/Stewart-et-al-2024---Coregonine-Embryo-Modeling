@@ -34,6 +34,7 @@ ggplot(temp.all, aes(x = date, y = temp.c)) +
   scale_x_datetime(date_breaks = "1 month", date_labels =  "%b %d") + 
   theme(axis.text.x = element_text(angle = 90, hjust = 1)) + 
   facet_wrap(~year, scales = "free_x")
+ggsave("lake-superior-thunder-bay-bare-point.png", width = 14, height = 8, dpi = 300)
 
 #### CALCULATE MEAN SPAWNING DATE ----------------------------------------------------------------
 

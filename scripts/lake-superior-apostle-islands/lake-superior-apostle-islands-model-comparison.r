@@ -99,7 +99,7 @@ model.superior <- read_excel("data/model-structural-parameters.xlsx", sheet = "c
 model.ST.perc <- temp.all %>% left_join(mu.spawn) %>% 
   group_by(year) %>% 
   filter(date >= mu.spawn.date) %>% 
-  mutate(perc.day = (10^(model.superior$a + model.superior$b * temp.c + model.superior$c * temp.c^2))*100,
+  mutate(perc.day = (10^(model.ST$a + model.ST$b * temp.c + model.ST$c * temp.c^2))*100,
          perc.cum = cumsum(perc.day),) %>% 
   filter(perc.cum <= 100) %>%
   mutate(ADD = cumsum(temp.c))
@@ -144,7 +144,7 @@ ggplot(temp.all, aes(x = date, y = temp.c)) +
         panel.spacing = unit(1, "lines")) + 
   facet_wrap(~year, scales = "free_x")
 
-ggsave("figures/lake-superior-apostle-islands/lake-superior-apostle-islands-model-comparison-temp.png", height = 6.5, width = 14, dpi = 300)
+ggsave("figures/lake-superior-apostle-islands/lake-superior-apostle-islands-model-comparison-temp-alpha85.33.png", height = 6.5, width = 14, dpi = 300)
 
 
 plot.add <- ggplot(model.hatching.all, aes(x = factor(year), y = ADD, group = model)) +
@@ -197,5 +197,5 @@ plot.all <- grid.arrange(
   heights = c(0.05, 1.0)
 )
 
-ggsave("figures/lake-superior-apostle-islands/lake-superior-apostle-islands-model-comparison-point.png", plot = plot.all, width = 8, height = 5, dpi = 300)
+ggsave("figures/lake-superior-apostle-islands/lake-superior-apostle-islands-model-comparison-point-alpha85.33.png", plot = plot.all, width = 8, height = 5, dpi = 300)
 
