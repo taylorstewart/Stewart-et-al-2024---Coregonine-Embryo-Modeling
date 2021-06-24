@@ -52,24 +52,23 @@ temp.all <- bind_rows(temp.1, temp.2, temp.3, temp.4, temp.5, temp.6, temp.7, te
   mutate(yday = yday(date))
 rm(temp.1, temp.2, temp.3, temp.4, temp.5, temp.6, temp.7, temp.8, temp.9, temp.10)
 
-## Stewart et al. 2021
-model.ontario <- read_excel("data/model-structural-parameters.xlsx", sheet = "coefs") %>% 
-  filter(lake == "Lake Ontario")
-
 
 spawn <- read_excel("data/lake-ontario/lake-ontario-spawning.xlsx", sheet = "lake-ontario-spawning") %>%
   filter(prop.ripe != 0) %>% 
   group_by(year) %>% 
   slice(which.max(prop.ripe)) %>% 
-  mutate(end.date = date+(6*86400)) %>% 
+  mutate(end.date = date+(8*86400)) %>% 
   select(year, start.date = date, end.date)
 
-test2 <- temp.all %>% left_join(spawn) %>%
+spawn.temp <- temp.all %>% left_join(spawn) %>%
   group_by(year) %>% 
-  filter(date >= start.date, date <= end.date) %>% ungroup() %>% 
-  summarize(start.spawn.temp = max(temp.c),
-            end.spawn.temp = min(temp.c))
-
+  filter(date >= start.date, date <= end.date) %>% 
+  group_by(year) %>% 
+  arrange(date) %>%
+  filter(row_number() %in% c(1, n())) %>% ungroup() %>% 
+  mutate(spawn.group = rep(c("start", "end"), times = 3)) %>% 
+  group_by(spawn.group) %>% 
+  summarize(temp.c = mean(temp.c))
 
 
   
