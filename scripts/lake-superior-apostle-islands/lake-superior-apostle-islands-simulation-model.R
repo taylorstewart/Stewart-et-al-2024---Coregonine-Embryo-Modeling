@@ -69,9 +69,12 @@ simulation.model.hatch <- do.call(rbind, lapply(unique(simulation.data.filt$year
   ## Combine start and end dates; Filter to each day in spawning period
   spawn.period.temp <- simulation.data.annual.ma %>% 
     left_join(spawn.start.date) %>% 
-    left_join(spawn.end.date) %>%
+    left_join(spawn.end.date) %>% 
+    mutate(spawn.length_days = as.Date(spawn.end.date) - as.Date(spawn.start.date),
+           spawn.end.date = as.Date(ifelse(spawn.length_days > 30, spawn.start.date+30, spawn.end.date), origin = "1970-01-01")) %>%
     group_by(scenario) %>% 
     filter(date >= spawn.start.date, date <= spawn.end.date)
+    
   
   ## Loop across all climate scenarios
   do.call(rbind, lapply(unique(spawn.period.temp$scenario), function(j) {
@@ -80,6 +83,8 @@ simulation.model.hatch <- do.call(rbind, lapply(unique(simulation.data.filt$year
     ## Run model for each day in the spawning period
     do.call(rbind, lapply(unique(spawn.period.temp.scenario$date), function(k) {
       simulation.data.model <- simulation.data.annual %>% filter(scenario == j, date >= k)
+      
+      spawn.temp_c <- simulation.data.model %>% slice(1) %>% pull(mean.temp.c)
       
       ## Take antilog from daily semilog output, accumulate across days
       simulation.data.model.output <- simulation.data.model %>% 
@@ -91,9 +96,13 @@ simulation.model.hatch <- do.call(rbind, lapply(unique(simulation.data.filt$year
       ## Extract hatch date
       simulation.data.model.output.max <- simulation.data.model.output %>% 
         slice(which.max(perc.cum)) %>% 
-        mutate(dpf = as.Date(date)-as.Date(k), 
+        mutate(spawn.date = k,
+               spawn.yday = yday(spawn.date),
+               spawn.yday = ifelse(spawn.yday < 100, spawn.yday+365, spawn.yday),
+               spawn.temp_c = spawn.temp_c,
+               dpf = as.Date(date)-as.Date(k), 
                hatch.yday = yday(date)) %>% 
-        select(scenario, year.class, hatch.date = date, hatch.yday, hatch.temp_c = mean.temp.c, dpf, ADD)
+        select(scenario, year.class, spawn.date, spawn.yday, spawn.temp_c, hatch.date = date, hatch.yday, hatch.temp_c = mean.temp.c, dpf, ADD)
     }))
   }))
 })) %>% mutate(year.class = factor(year.class))
