@@ -71,7 +71,8 @@ simulation.model.hatch <- do.call(rbind, lapply(unique(simulation.data.filt$year
     left_join(spawn.start.date) %>% 
     left_join(spawn.end.date) %>% 
     mutate(spawn.length_days = as.Date(spawn.end.date) - as.Date(spawn.start.date),
-           spawn.end.date = as.Date(ifelse(spawn.length_days > 30, spawn.start.date+30, spawn.end.date), origin = "1970-01-01")) %>%
+           spawn.end.date = as.Date(ifelse(spawn.length_days > 30, spawn.start.date+30, spawn.end.date), origin = "1970-01-01"),
+           spawn.length_days = as.Date(spawn.end.date) - as.Date(spawn.start.date)) %>%
     group_by(scenario) %>% 
     filter(date >= spawn.start.date, date <= spawn.end.date)
     
@@ -81,10 +82,11 @@ simulation.model.hatch <- do.call(rbind, lapply(unique(simulation.data.filt$year
     spawn.period.temp.scenario <- spawn.period.temp %>% filter(scenario == j)
     
     ## Run model for each day in the spawning period
-    do.call(rbind, lapply(unique(spawn.period.temp.scenario$date), function(k) {
+    temp.hatch <- do.call(rbind, lapply(unique(spawn.period.temp.scenario$date), function(k) {
       simulation.data.model <- simulation.data.annual %>% filter(scenario == j, date >= k)
       
       spawn.temp_c <- simulation.data.model %>% slice(1) %>% pull(mean.temp.c)
+      spawn.length_days <- spawn.period.temp.scenario %>% slice(1) %>% pull(spawn.length_days) %>% as.numeric()
       
       ## Take antilog from daily semilog output, accumulate across days
       simulation.data.model.output <- simulation.data.model %>% 
@@ -99,17 +101,61 @@ simulation.model.hatch <- do.call(rbind, lapply(unique(simulation.data.filt$year
         mutate(spawn.date = k,
                spawn.yday = yday(spawn.date),
                spawn.yday = ifelse(spawn.yday < 100, spawn.yday+365, spawn.yday),
+               spawn.length_days = spawn.length_days,
                spawn.temp_c = spawn.temp_c,
                dpf = as.Date(date)-as.Date(k), 
                hatch.yday = yday(date)) %>% 
-        select(scenario, year.class, spawn.date, spawn.yday, spawn.temp_c, hatch.date = date, hatch.yday, hatch.temp_c = mean.temp.c, dpf, ADD)
-    }))
+        select(scenario, year.class, spawn.date, spawn.yday, spawn.length_days, spawn.temp_c, hatch.date = date, hatch.yday, hatch.temp_c = mean.temp.c, dpf, ADD)
+    })) %>% 
+      mutate(spawn.peak.date = mean(spawn.date),
+             spawn.peak.yday = yday(spawn.peak.date),
+             spawn.peak.yday = ifelse(spawn.peak.yday < 100, spawn.peak.yday+365, spawn.peak.yday),
+             hatch.peak.date = mean(hatch.date),
+             hatch.peak.yday = yday(hatch.peak.date),
+             hatch.length_days = length(unique(hatch.yday))) %>% 
+      select(1:3, spawn.peak.date, spawn.peak.yday, 4:7, hatch.peak.date, hatch.peak.yday, 8, hatch.length_days, 9:12)
   }))
-})) %>% mutate(year.class = factor(year.class))
+})) %>% mutate(year.class = factor(year.class),
+               decade = factor(year(floor_date(hatch.date, years(10)))))
 
-ggplot(simulation.model.hatch, aes(x = year.class, y = hatch.yday)) +
+
+ggplot(simulation.model.hatch, aes(x = spawn.length_days, y = hatch.length_days)) +
+  geom_point(aes(color = factor(decade))) +
+  geom_smooth(method = "lm", se = FALSE) +
+  theme_bw()
+  
+ggplot(simulation.model.hatch, aes(x = year.class, y = spawn.yday)) +
   geom_boxplot() +
   coord_flip() +
   theme_bw() +
   facet_wrap(~scenario)
+
+
+ggplot(simulation.model.hatch, aes(x = spawn.peak.yday, y = hatch.yday)) +
+  geom_tile(aes(fill = decade)) +
+  scale_x_continuous(limits = c(325, 370), breaks = seq(325, 370, 5), expand = c(0, 0.2)) +
+  scale_y_continuous(limits = c(95, 135), breaks = seq(95, 135, 5), expand = c(0, 0.2)) +
+  scale_fill_manual(values = c("#ffffcc", "#ffeda0", "#fed976", "#feb24c", 
+                               "#fd8d3c", "#fc4e2a", "#e31a1c", "#bd0026", "#800026")) +
+  labs(x = "Mean Julian Spawn Date", y = "Julian Hatch Date") +
+  theme_few() +
+  theme(panel.background = element_rect(fill = "grey90", colour = "grey90"),
+        axis.title.x = element_text(color = "Black", size = 15, margin = margin(10, 0, 0, 0)),
+        axis.title.y = element_text(color = "Black", size = 15, margin = margin(0, 10, 0, 0)),
+        axis.text.x = element_text(size = 10),
+        axis.text.y = element_text(size = 10),
+        axis.ticks.length = unit(2, 'mm'),
+        legend.title = element_blank(),
+        legend.text = element_text(size = 10),
+        legend.key.size = unit(1.0, 'cm'),
+        strip.text = element_text(size = 10),
+        panel.spacing = unit(1.5, "lines")) +
+  facet_wrap(~scenario)
+
+ggsave("figures/lake-superior-apostle-islands/lake-superior-apostle-islands-simulation-heatmap.png", width = 14, height = 7, dpi = 300)
+
+
+
+
+
 
