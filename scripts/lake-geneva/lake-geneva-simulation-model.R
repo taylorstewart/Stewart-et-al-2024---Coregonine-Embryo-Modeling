@@ -12,32 +12,53 @@ library(ggplot2)
 library(ggthemes)
 library(stringr)
 library(lubridate)
-library(lubridateExtras)
 
 
 #### CREATE A LIST OF FILES ----------------------------------------------------------------------
 
-simulation.files <- list.files('data/climate-simulations/simstrat-summaries/byClimateDepth/', pattern = "csv", full.names = TRUE)
+simulation.files <- grep(pattern = "(?=.*simstrat)(?=.*watertemp)(?=.*geneva)",
+                         x = list.files(path = 'data/climate-simulations', recursive = TRUE, full.names = TRUE), 
+                         value = TRUE, perl = TRUE)
 
 
 #### LOAD DATA -----------------------------------------------------------------------------------
 
 simulation.data <- do.call(rbind, lapply(simulation.files, function(i) {
-  data <- fread(i)
+  print(i)
+  lake <- str_match(i, "watertemp-\\s*(.*?)\\s*-2006")[2]
+  scenario <- str_match(i, "esm2m-\\s*(.*?)\\s*-watertemp")[2]
+  
+  if(scenario == "rcp26") {
+    scenario.upper <- "RCP 2.6"
+  } else if(scenario == "rcp60") {
+    scenario.upper <- "RCP 6.0"
+  } else if(scenario == "rcp85") {
+    scenario.upper <- "RCP 8.5"
+  }
+  
+  data <- fread(i) %>% 
+    mutate(lake = toupper(lake),
+           scenario = scenario.upper,
+           year = year(date),
+           month = month(date),
+           yday = yday(date)) %>% 
+    filter(month %in% c(9, 10, 11, 12, 1, 2, 3, 4, 5, 6)) %>% 
+    mutate(year.class = ifelse(yday > 240, year + 1, year)) %>% 
+    filter(year.class != 2006, year.class != 2100)
 })) %>% 
   filter(year.class >= 2010)
 
 model.locations <- read_excel("data/model-population-parameters.xlsx", sheet = "bio-parameters") %>% 
-  filter(population == "apostle islands")
+  filter(population == "geneva")
 
 simulation.data.filt <- simulation.data %>% 
-  filter(climate.group == model.locations$climate.group,
-         depth.group == model.locations$depth.group)
+  filter(depth == model.locations$spawning.depth.m) %>% 
+  rename(temp_c = watertemp)
 
 
 ## Stewart et al. 2021
 model.parameters <- read_excel("data/model-structural-parameters.xlsx", sheet = "coefficients") %>% 
-  filter(lake == "Lake Superior")
+  filter(lake == "Lake Geneva")
 
 
 simulation.model.hatch <- do.call(rbind, lapply(unique(simulation.data.filt$year.class), function(i) {
@@ -45,9 +66,9 @@ simulation.model.hatch <- do.call(rbind, lapply(unique(simulation.data.filt$year
   simulation.data.annual <- simulation.data.filt %>% filter(year.class == i)
   
   ## Calculate a 5-day center moving average to smooth temperature curve
-    ## Smoothing prevents issues below trying to find the start and stop from large daily temp deviations
+  ## Smoothing prevents issues below trying to find the start and stop from large daily temp deviations
   simulation.data.annual.ma <- simulation.data.annual %>% group_by(scenario) %>% 
-    mutate(temp.ma_c = frollmean(mean.temp.c, n = 5, align = "center"))
+    mutate(temp.ma_c = frollmean(temp_c, n = 5, align = "center"))
   
   ## Calculate the start date of spawning period
   spawn.start.date <- simulation.data.annual.ma %>% 
@@ -66,6 +87,14 @@ simulation.model.hatch <- do.call(rbind, lapply(unique(simulation.data.filt$year
     ## subtract one day to correct for temp less than (spawning ends day of temp threshold)
     mutate(spawn.end.date = as.Date(spawn.end.date)-1)
   
+  if(nrow(spawn.end.date) != 3) {
+    spawn.end.date <- spawn.start.date %>% left_join(spawn.end.date) %>% 
+      mutate(spawn.end.date = as.Date(ifelse(is.na(spawn.end.date) == TRUE, as.Date(spawn.start.date)+7, spawn.end.date), origin = "1970-01-01")) %>% 
+      select(-spawn.start.date)
+  } else {
+    spawn.end.date
+    }
+  
   ## Combine start and end dates; Filter to each day in spawning period
   spawn.period.temp <- simulation.data.annual.ma %>% 
     left_join(spawn.start.date) %>% 
@@ -75,7 +104,7 @@ simulation.model.hatch <- do.call(rbind, lapply(unique(simulation.data.filt$year
            spawn.length_days = as.Date(spawn.end.date) - as.Date(spawn.start.date)) %>%
     group_by(scenario) %>% 
     filter(date >= spawn.start.date, date <= spawn.end.date)
-    
+  
   
   ## Loop across all climate scenarios
   do.call(rbind, lapply(unique(spawn.period.temp$scenario), function(j) {
@@ -85,15 +114,15 @@ simulation.model.hatch <- do.call(rbind, lapply(unique(simulation.data.filt$year
     temp.hatch <- do.call(rbind, lapply(unique(spawn.period.temp.scenario$date), function(k) {
       simulation.data.model <- simulation.data.annual %>% filter(scenario == j, date >= k)
       
-      spawn.temp_c <- simulation.data.model %>% slice(1) %>% pull(mean.temp.c)
+      spawn.temp_c <- simulation.data.model %>% slice(1) %>% pull(temp_c)
       spawn.length_days <- spawn.period.temp.scenario %>% slice(1) %>% pull(spawn.length_days) %>% as.numeric()
       
       ## Take antilog from daily semilog output, accumulate across days
       simulation.data.model.output <- simulation.data.model %>% 
-        mutate(perc.day = (10^(model.parameters$a + model.parameters$b * mean.temp.c + model.parameters$c * mean.temp.c^2))*100,
-               perc.cum = cumsum(perc.day),) %>% 
+        mutate(perc.day = (10^(model.parameters$a + model.parameters$b * temp_c))*100,
+               perc.cum = cumsum(perc.day)) %>% 
         filter(perc.cum <= 100) %>%
-        mutate(ADD = cumsum(mean.temp.c))
+        mutate(ADD = cumsum(temp_c))
       
       ## Extract hatch date
       simulation.data.model.output.max <- simulation.data.model.output %>% 
@@ -105,7 +134,7 @@ simulation.model.hatch <- do.call(rbind, lapply(unique(simulation.data.filt$year
                spawn.temp_c = spawn.temp_c,
                dpf = as.Date(date)-as.Date(k), 
                hatch.yday = yday(date)) %>% 
-        select(scenario, year.class, spawn.date, spawn.yday, spawn.length_days, spawn.temp_c, hatch.date = date, hatch.yday, hatch.temp_c = mean.temp.c, dpf, ADD)
+        select(scenario, year.class, spawn.date, spawn.yday, spawn.length_days, spawn.temp_c, hatch.date = date, hatch.yday, hatch.temp_c = temp_c, dpf, ADD)
     })) %>% 
       mutate(spawn.peak.date = mean(spawn.date),
              spawn.peak.yday = yday(spawn.peak.date),
@@ -125,8 +154,8 @@ ggplot(simulation.model.hatch, aes(x = spawn.peak.yday.plot, y = hatch.yday.plot
   geom_tile(aes(fill = decade)) +
   scale_x_date(date_breaks = "2 weeks", date_labels =  "%b %d", expand = c(0, 5)) + 
   scale_y_date(date_breaks = "2 weeks", date_labels =  "%b %d", expand = c(0, 5)) + 
-  #scale_x_continuous(limits = c(325, 370), breaks = seq(325, 370, 5), expand = c(0, 0.2)) +
-  #scale_y_continuous(limits = c(95, 135), breaks = seq(95, 135, 5), expand = c(0, 0.2)) +
+  #scale_x_continuous(limits = c(312, 355), breaks = seq(315, 355, 5), expand = c(0, 0.2)) +
+  #scale_y_continuous(limits = c(85, 126), breaks = seq(85, 125, 5), expand = c(0, 0.2)) +
   scale_fill_manual(values = c("#ffffcc", "#ffeda0", "#fed976", "#feb24c", 
                                "#fd8d3c", "#fc4e2a", "#e31a1c", "#bd0026", "#800026")) +
   labs(x = "Mean Spawn Date", y = "Hatch Date") +
@@ -140,14 +169,11 @@ ggplot(simulation.model.hatch, aes(x = spawn.peak.yday.plot, y = hatch.yday.plot
         legend.title = element_blank(),
         legend.text = element_text(size = 10),
         legend.key.size = unit(1.0, 'cm'),
+        legend.key = element_rect(color = "black"),
         strip.text = element_text(size = 10),
         panel.spacing = unit(1.5, "lines")) +
   facet_wrap(~scenario)
 
-ggsave("figures/lake-superior-apostle-islands/lake-superior-apostle-islands-simulation-heatmap.png", width = 14, height = 7, dpi = 300)
-
-
-
-
+ggsave("figures/lake-geneva/lake-geneva-simulation-heatmap.png", width = 14, height = 7, dpi = 300)
 
 

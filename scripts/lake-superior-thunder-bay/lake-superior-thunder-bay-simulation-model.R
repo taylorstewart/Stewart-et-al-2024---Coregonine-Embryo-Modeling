@@ -12,7 +12,6 @@ library(ggplot2)
 library(ggthemes)
 library(stringr)
 library(lubridate)
-library(lubridateExtras)
 
 
 #### CREATE A LIST OF FILES ----------------------------------------------------------------------
@@ -28,7 +27,7 @@ simulation.data <- do.call(rbind, lapply(simulation.files, function(i) {
   filter(year.class >= 2010)
 
 model.locations <- read_excel("data/model-population-parameters.xlsx", sheet = "bio-parameters") %>% 
-  filter(population == "apostle islands")
+  filter(population == "thunder bay")
 
 simulation.data.filt <- simulation.data %>% 
   filter(climate.group == model.locations$climate.group,
@@ -45,7 +44,7 @@ simulation.model.hatch <- do.call(rbind, lapply(unique(simulation.data.filt$year
   simulation.data.annual <- simulation.data.filt %>% filter(year.class == i)
   
   ## Calculate a 5-day center moving average to smooth temperature curve
-    ## Smoothing prevents issues below trying to find the start and stop from large daily temp deviations
+  ## Smoothing prevents issues below trying to find the start and stop from large daily temp deviations
   simulation.data.annual.ma <- simulation.data.annual %>% group_by(scenario) %>% 
     mutate(temp.ma_c = frollmean(mean.temp.c, n = 5, align = "center"))
   
@@ -75,7 +74,7 @@ simulation.model.hatch <- do.call(rbind, lapply(unique(simulation.data.filt$year
            spawn.length_days = as.Date(spawn.end.date) - as.Date(spawn.start.date)) %>%
     group_by(scenario) %>% 
     filter(date >= spawn.start.date, date <= spawn.end.date)
-    
+  
   
   ## Loop across all climate scenarios
   do.call(rbind, lapply(unique(spawn.period.temp$scenario), function(j) {
@@ -125,8 +124,8 @@ ggplot(simulation.model.hatch, aes(x = spawn.peak.yday.plot, y = hatch.yday.plot
   geom_tile(aes(fill = decade)) +
   scale_x_date(date_breaks = "2 weeks", date_labels =  "%b %d", expand = c(0, 5)) + 
   scale_y_date(date_breaks = "2 weeks", date_labels =  "%b %d", expand = c(0, 5)) + 
-  #scale_x_continuous(limits = c(325, 370), breaks = seq(325, 370, 5), expand = c(0, 0.2)) +
-  #scale_y_continuous(limits = c(95, 135), breaks = seq(95, 135, 5), expand = c(0, 0.2)) +
+  #scale_x_continuous(limits = c(315, 350), breaks = seq(315, 350, 5), expand = c(0, 0.2)) +
+  #scale_y_continuous(limits = c(85, 120), breaks = seq(85, 120, 5), expand = c(0, 0.2)) +
   scale_fill_manual(values = c("#ffffcc", "#ffeda0", "#fed976", "#feb24c", 
                                "#fd8d3c", "#fc4e2a", "#e31a1c", "#bd0026", "#800026")) +
   labs(x = "Mean Spawn Date", y = "Hatch Date") +
@@ -144,10 +143,6 @@ ggplot(simulation.model.hatch, aes(x = spawn.peak.yday.plot, y = hatch.yday.plot
         panel.spacing = unit(1.5, "lines")) +
   facet_wrap(~scenario)
 
-ggsave("figures/lake-superior-apostle-islands/lake-superior-apostle-islands-simulation-heatmap.png", width = 14, height = 7, dpi = 300)
-
-
-
-
+ggsave("figures/lake-superior-thunder-bay/lake-superior-thunder-bay-simulation-heatmap.png", width = 14, height = 7, dpi = 300)
 
 

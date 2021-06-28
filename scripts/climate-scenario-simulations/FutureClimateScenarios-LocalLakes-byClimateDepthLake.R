@@ -13,12 +13,11 @@ library(ggplot2)
 library(ggthemes)
 library(stringr)
 library(lubridate)
-library(lubridateExtras)
 
 
 ### CREATE A LIST OF FILES ----------------------------------------------------------------------
 
-climate.files <- grep(pattern = "(?=.*simstrat)(?=.*bottemp)",
+climate.files <- grep(pattern = "(?=.*simstrat)(?=.*bottemp)(?=.*geneva)",
                       x = list.files(path = 'data/climate-simulations', recursive = TRUE, full.names = TRUE), 
                       value = TRUE, perl = TRUE)
 
