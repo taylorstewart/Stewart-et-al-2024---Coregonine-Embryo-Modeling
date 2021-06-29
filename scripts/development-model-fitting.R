@@ -16,10 +16,10 @@ model.data.superior <- read_excel("/Users/taylor/SynologyDrive/Cisco-Climate-Cha
          hatch = as.numeric(hatch)) %>% 
   filter(!is.na(eye), !is.na(hatch), !is.na(dpf), hatch == 1, include_incubation == "y") %>% 
   rename(temp.c = temperature) %>%
-  group_by(temp.c, dpf) %>% 
+  group_by(temp.c, dpf, family) %>% 
   summarize(n = n()) %>% ungroup() %>%
   arrange(temp.c, dpf) %>% 
-  group_by(temp.c) %>% 
+  group_by(temp.c, family) %>% 
   mutate(total.n = sum(n),
          prop.n = n/total.n,
          cum.prop = cumsum(prop.n)) %>% 
@@ -39,10 +39,10 @@ model.data.ontario <- read_excel("/Users/taylor/SynologyDrive/Cisco-Climate-Chan
          hatch = as.numeric(hatch)) %>% 
   filter(!is.na(eye), !is.na(hatch), !is.na(dpf), hatch == 1, include_incubation == "y") %>% 
   rename(temp.c = temperature) %>%
-  group_by(temp.c, dpf) %>% 
+  group_by(temp.c, dpf, family) %>% 
   summarize(n = n()) %>% ungroup() %>%
   arrange(temp.c, dpf) %>% 
-  group_by(temp.c) %>% 
+  group_by(temp.c, family) %>% 
   mutate(total.n = sum(n),
          prop.n = n/total.n,
          cum.prop = cumsum(prop.n)) %>% 
@@ -62,10 +62,10 @@ model.data.konnevesi.vendace <- read_excel("/Users/taylor/SynologyDrive/Cisco-Cl
   filter(species == "albula", !is.na(eye), !is.na(hatch), !is.na(dpf), 
          hatch == 1, include_incubation == "y") %>% 
   rename(temp.c = temperature) %>%
-  group_by(temp.c, dpf) %>% 
+  group_by(temp.c, dpf, family) %>% 
   summarize(n = n()) %>% ungroup() %>%
   arrange(temp.c, dpf) %>% 
-  group_by(temp.c) %>% 
+  group_by(temp.c, family) %>% 
   mutate(total.n = sum(n),
          prop.n = n/total.n,
          cum.prop = cumsum(prop.n)) %>% 
@@ -85,10 +85,10 @@ model.data.konnevesi.whitefish <- read_excel("/Users/taylor/SynologyDrive/Cisco-
   filter(species == "lavaretus", !is.na(eye), !is.na(hatch), !is.na(dpf), 
          hatch == 1, include_incubation == "y") %>% 
   rename(temp.c = temperature) %>%
-  group_by(temp.c, dpf) %>% 
+  group_by(temp.c, dpf, family) %>% 
   summarize(n = n()) %>% ungroup() %>%
   arrange(temp.c, dpf) %>% 
-  group_by(temp.c) %>% 
+  group_by(temp.c, family) %>% 
   mutate(total.n = sum(n),
          prop.n = n/total.n,
          cum.prop = cumsum(prop.n)) %>% 
@@ -110,10 +110,10 @@ model.data.constance.lit <- read_excel("/Users/taylor/SynologyDrive/Cisco-Climat
          !is.na(eye), !is.na(hatch), !is.na(dpf), 
          hatch == 1, include.incubation == "y") %>% 
   rename(temp.c = temperature) %>%
-  group_by(temp.c, dpf) %>% 
+  group_by(temp.c, dpf, family) %>% 
   summarize(n = n()) %>% ungroup() %>%
   arrange(temp.c, dpf) %>% 
-  group_by(temp.c) %>% 
+  group_by(temp.c, family) %>% 
   mutate(total.n = sum(n),
          prop.n = n/total.n,
          cum.prop = cumsum(prop.n)) %>% 
@@ -134,10 +134,10 @@ model.data.constance.pel <- read_excel("/Users/taylor/SynologyDrive/Cisco-Climat
          !is.na(eye), !is.na(hatch), !is.na(dpf), 
          hatch == 1, include.incubation == "y") %>% 
   rename(temp.c = temperature) %>%
-  group_by(temp.c, dpf) %>% 
+  group_by(temp.c, dpf, family) %>% 
   summarize(n = n()) %>% ungroup() %>%
   arrange(temp.c, dpf) %>% 
-  group_by(temp.c) %>% 
+  group_by(temp.c, family) %>% 
   mutate(total.n = sum(n),
          prop.n = n/total.n,
          cum.prop = cumsum(prop.n)) %>% 
@@ -157,10 +157,10 @@ model.data.geneva <- read_excel("/Users/taylor/SynologyDrive/Cisco-Climate-Chang
   filter(population == "leman", !is.na(eye), !is.na(hatch), !is.na(dpf), 
          hatch == 1, include.incubation == "y") %>% 
   rename(temp.c = temperature) %>%
-  group_by(temp.c, dpf) %>% 
+  group_by(temp.c, dpf, family) %>% 
   summarize(n = n()) %>% ungroup() %>%
   arrange(temp.c, dpf) %>% 
-  group_by(temp.c) %>% 
+  group_by(temp.c, family) %>% 
   mutate(total.n = sum(n),
          prop.n = n/total.n,
          cum.prop = cumsum(prop.n)) %>% 
@@ -180,10 +180,10 @@ model.data.bourget <- read_excel("/Users/taylor/SynologyDrive/Cisco-Climate-Chan
   filter(population == "bourget", !is.na(eye), !is.na(hatch), !is.na(dpf), 
          hatch == 1, include.incubation == "y") %>% 
   rename(temp.c = temperature) %>%
-  group_by(temp.c, dpf) %>% 
+  group_by(temp.c, dpf, family) %>% 
   summarize(n = n()) %>% ungroup() %>%
   arrange(temp.c, dpf) %>% 
-  group_by(temp.c) %>% 
+  group_by(temp.c, family) %>% 
   mutate(total.n = sum(n),
          prop.n = n/total.n,
          cum.prop = cumsum(prop.n)) %>% 
@@ -194,5 +194,6 @@ model.data.bourget <- read_excel("/Users/taylor/SynologyDrive/Cisco-Climate-Chan
 ## Fit Semilog Model
 model.bourget <- lm(log.dpf.recip ~ temp.c + I(temp.c^2), data = model.data.bourget)
 summary(model.bourget)
+
 
 
