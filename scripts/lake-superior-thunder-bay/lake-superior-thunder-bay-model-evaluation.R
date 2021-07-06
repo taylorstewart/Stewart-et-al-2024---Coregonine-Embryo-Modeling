@@ -85,11 +85,11 @@ mu.spawn <- spawn.period.temp %>%
 
 #### CALCULATE MEAN HATCHING DATE ----------------------------------------------------------------
 
-mu.hatch <- read_excel("data/lake-superior-apostle-islands/lake-superior-apostle-islands-hatching.xlsx", sheet = "lake-superior-apostle-hatching") %>% 
-  select(year, mu.hatch.date = mean.date) %>% 
+mu.hatch <- read_excel("data/lake-superior-thunder-bay/lake-superior-thunder-bay-hatching.xlsx", sheet = "lake-superior-thunder-bay-hatch") %>%
+  group_by(year) %>% 
+  summarize(mu.hatch.date = as.Date(weighted.mean(date, mean.density), format = "%Y-%m-%d")) %>% 
   mutate(mu.hatch.yday = yday(mu.hatch.date)) %>% 
-  summarize(mu.hatch = mean(mu.hatch.yday)) %>% 
-  pull()
+  summarize(mu.hatch = as.integer(mean(mu.hatch.yday))) %>% pull()
 
 
 #### FILTER TEMP PROFILES BY START AND END DATES -------------------------------------------------
@@ -157,6 +157,14 @@ model.hatching.all <- temp.ADD %>%
   bind_rows(., model.ST.perc.max, model.CB.perc.max) %>% 
   mutate(model = factor(model, ordered = TRUE, levels = c("EP", "ST", "CB")),
          jday = yday(date))
+
+model.hatching.all.comp <- model.hatching.all %>% 
+  group_by(model) %>% 
+  summarize(mean.yday = mean(jday),
+            n = n()) %>% 
+  select(model, n, mean.yday) %>% 
+  pivot_wider(names_from = model, values_from = mean.yday) %>% 
+  mutate(diff = EP-ST)
 
 
 #### VISUALIZATIONS ------------------------------------------------------------------------------

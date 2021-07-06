@@ -157,6 +157,13 @@ model.hatching.all <- temp.ADD %>%
   mutate(model = factor(model, ordered = TRUE, levels = c("EP", "ST", "CB")),
          jday = yday(date))
 
+model.hatching.all.comp <- model.hatching.all %>% 
+  group_by(model) %>% 
+  summarize(mean.yday = mean(jday),
+            n = n()) %>% 
+  select(model, n, mean.yday) %>% 
+  pivot_wider(names_from = model, values_from = mean.yday) %>% 
+  mutate(diff = EP-ST)
 
 #### VISUALIZATIONS ------------------------------------------------------------------------------xs
 

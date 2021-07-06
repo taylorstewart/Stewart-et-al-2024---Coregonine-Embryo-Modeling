@@ -5,10 +5,10 @@ rm(list = ls(all.names = TRUE))
 
 #### LOAD PACKAGES -----------------------------------------------------------
 
+library(tidyverse)
 library(ggplot2)
-library(lubridate)
+library(data.table)
 library(ggthemes)
-library(dplyr)
 library(readxl)
 library(gridExtra)
 library(grid)
@@ -22,10 +22,16 @@ temp.2 <- read_excel("data/lake-geneva/lake-geneva-temperature-sonde-interpolate
 temp.3 <- read_excel("data/lake-geneva/lake-geneva-temperature-sonde-interpolated.xlsx", sheet = "2015")
 
 temp.all <- bind_rows(temp.1, temp.2, temp.3) %>% 
-  filter(depth.m == 6) %>% 
+  filter(depth.m == 4) %>% 
   mutate(yday = yday(date),
          date2 = as.Date(ifelse(yday > 250, paste0("2019-", month, "-", day), paste0("2020-", month, "-", day)), format = "%Y-%m-%d"))
 rm(temp.1, temp.2, temp.3)
+
+## Calculate a 5-day center moving average to smooth temperature curve
+## Smoothing prevents issues below trying to find the start and stop from large daily temp deviations
+temp.all.ma <- temp.all %>% group_by(year) %>% 
+  mutate(temp.ma_c = frollmean(temp.c, n = 5, align = "center")) %>% 
+  filter(!is.na(temp.ma_c))
 
 ## 
 ggplot(temp.all, aes(x = date2, y = temp.c)) + 
@@ -35,23 +41,52 @@ ggplot(temp.all, aes(x = date2, y = temp.c)) +
   theme(axis.text.x = element_text(angle = 90, hjust = 1))  + 
   facet_wrap(~year)
 
+model.locations <- read_excel("data/model-population-parameters.xlsx", sheet = "bio-parameters") %>% 
+  filter(population == "geneva")
+
 
 #### CALCULATE MEAN SPAWNING DATE ----------------------------------------------------------------
 
-mu.spawn <- read_excel("data/lake-geneva/lake-geneva-spawning.xlsx", sheet = "lake-geneva-spawning") %>% 
-  filter(spawn.abundance > 0) %>% 
+## Calculate the start date of spawning period
+spawn.start.date <- temp.all.ma %>% 
   group_by(year) %>% 
-  summarize(mu.spawn.date = as.Date(weighted.mean(date, spawn.abundance), format = "%Y-%m-%d"),
-            mu.spawn.temp = weighted.mean(temp.c, spawn.abundance, na.rm = TRUE)) %>% 
-  mutate(mu.spawn.yday = yday(mu.spawn.date),
-         mu.spawn.yday = ifelse(mu.spawn.yday < 30, mu.spawn.yday+365, mu.spawn.yday)) %>% 
-  summarize(mu.spawn = mean(mu.spawn.yday)) %>% 
-  mutate(mu.spawn = ifelse(mu.spawn > 365, mu.spawn-365, mu.spawn)) %>% 
-  pull()
+  filter(temp.ma_c <= model.locations$start.spawn.temp_c) %>% 
+  arrange(date) %>% 
+  slice(1) %>% select(year, spawn.start.date = date)
+
+## Calculate the end date of spawning period
+spawn.end.date <- temp.all.ma %>% 
+  group_by(year) %>% 
+  filter(temp.ma_c <= model.locations$end.spawn.temp_c) %>% 
+  arrange(date) %>% 
+  slice(1) %>% 
+  select(year, spawn.end.date = date) %>% 
+  ## subtract one day to correct for temp less than (spawning ends day of temp threshold)
+  mutate(spawn.end.date = as.Date(spawn.end.date)-1)
+
+## Combine start and end dates; Filter to each day in spawning period
+spawn.period.temp <- temp.all.ma %>% 
+  left_join(spawn.start.date) %>% 
+  left_join(spawn.end.date) %>% 
+  mutate(spawn.length_days = as.Date(spawn.end.date) - as.Date(spawn.start.date),
+         spawn.end.date = as.Date(ifelse(spawn.length_days > 30, as.Date(spawn.start.date)+30, spawn.end.date), origin = "1970-01-01"),
+         spawn.length_days = as.Date(spawn.end.date) - as.Date(spawn.start.date)) %>%
+  group_by(year) %>% 
+  filter(date >= spawn.start.date, date <= spawn.end.date)
+
+mu.spawn <- spawn.period.temp %>% 
+  group_by(year) %>% 
+  summarize(mu.spawn.date = mean(date)) %>% 
+  mutate(mu.spawn.yday = yday(mu.spawn.date))
 
 
 #### CALCULATE MEAN HATCHING DATE ----------------------------------------------------------------
 
+mu.hatch <- read_excel("data/lake-geneva/lake-geneva-hatching.xlsx", sheet = "lake-geneva-hatching") %>%
+  group_by(year) %>% 
+  summarize(mu.hatch.date = as.Date(weighted.mean(date, abundance), format = "%Y-%m-%d")) %>% 
+  mutate(mu.hatch.yday = yday(mu.hatch.date)) %>% 
+  summarize(mu.hatch = as.integer(mean(mu.hatch.yday))) %>% pull()
 
 
 ## Filter temp profiles by start and end dates, calculate daily degree-days

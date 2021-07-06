@@ -8,11 +8,8 @@ rm(list = ls(all.names = TRUE))
 library(tidyverse)
 library(data.table)
 library(readxl)
-library(ggplot2)
 library(ggthemes)
-library(stringr)
 library(lubridate)
-library(lubridateExtras)
 
 
 #### CREATE A LIST OF FILES ----------------------------------------------------------------------
@@ -71,15 +68,26 @@ simulation.model.hatch <- do.call(rbind, lapply(unique(simulation.data.filt$year
     left_join(spawn.start.date) %>% 
     left_join(spawn.end.date) %>% 
     mutate(spawn.length_days = as.Date(spawn.end.date) - as.Date(spawn.start.date),
-           spawn.end.date = as.Date(ifelse(spawn.length_days > 30, spawn.start.date+30, spawn.end.date), origin = "1970-01-01"),
+           spawn.end.date = as.Date(ifelse(spawn.length_days > 20, spawn.start.date+20, spawn.end.date), origin = "1970-01-01"),
            spawn.length_days = as.Date(spawn.end.date) - as.Date(spawn.start.date)) %>%
     group_by(scenario) %>% 
-    filter(date >= spawn.start.date, date <= spawn.end.date)
-    
+    filter(date >= spawn.start.date, date <= spawn.end.date) 
+  
+  ## Calculate the rate of temperature change and divide number of spawning females propotionally
+  spawner.abundance <- spawn.period.temp %>% 
+    group_by(scenario) %>% 
+    mutate(temp.diff_c = lag(mean.temp.c) - mean.temp.c,
+           temp.diff_c = ifelse(is.na(temp.diff_c) == TRUE, model.locations$start.spawn.temp_c - mean.temp.c, temp.diff_c),
+           temp.diff.prop = temp.diff_c / sum(temp.diff_c),
+           temp.diff.prop = ifelse(temp.diff.prop < 0, 0, temp.diff.prop),
+           daily.spawner.abundance = round(1000 * temp.diff.prop, 0),
+           daily.spawner.abundance = ifelse(daily.spawner.abundance == 0, 1, daily.spawner.abundance),
+           daily.eggs = daily.spawner.abundance * 100) %>% 
+    select(-temp.diff_c, -temp.diff.prop, -daily.spawner.abundance)
   
   ## Loop across all climate scenarios
-  do.call(rbind, lapply(unique(spawn.period.temp$scenario), function(j) {
-    spawn.period.temp.scenario <- spawn.period.temp %>% filter(scenario == j)
+  do.call(rbind, lapply(unique(spawner.abundance$scenario), function(j) {
+    spawn.period.temp.scenario <- spawner.abundance %>% filter(scenario == j)
     
     ## Run model for each day in the spawning period
     temp.hatch <- do.call(rbind, lapply(unique(spawn.period.temp.scenario$date), function(k) {
@@ -87,6 +95,7 @@ simulation.model.hatch <- do.call(rbind, lapply(unique(simulation.data.filt$year
       
       spawn.temp_c <- simulation.data.model %>% slice(1) %>% pull(mean.temp.c)
       spawn.length_days <- spawn.period.temp.scenario %>% slice(1) %>% pull(spawn.length_days) %>% as.numeric()
+      daily.eggs <- spawn.period.temp.scenario %>% filter(date == k) %>% pull(daily.eggs)
       
       ## Take antilog from daily semilog output, accumulate across days
       simulation.data.model.output <- simulation.data.model %>% 
@@ -106,6 +115,9 @@ simulation.model.hatch <- do.call(rbind, lapply(unique(simulation.data.filt$year
                dpf = as.Date(date)-as.Date(k), 
                hatch.yday = yday(date)) %>% 
         select(scenario, year.class, spawn.date, spawn.yday, spawn.length_days, spawn.temp_c, hatch.date = date, hatch.yday, hatch.temp_c = mean.temp.c, dpf, ADD)
+      
+      simulation.data.model.output.max.rep <- simulation.data.model.output.max %>% slice(rep(1:n(), each = daily.eggs)) %>% 
+        mutate(daily.egg.rep = 1:n())
     })) %>% 
       mutate(spawn.peak.date = mean(spawn.date),
              spawn.peak.yday = yday(spawn.peak.date),
@@ -115,14 +127,16 @@ simulation.model.hatch <- do.call(rbind, lapply(unique(simulation.data.filt$year
              hatch.length_days = length(unique(hatch.yday))) %>% 
       select(1:3, spawn.peak.date, spawn.peak.yday, 4:7, hatch.peak.date, hatch.peak.yday, 8, hatch.length_days, 9:12)
   }))
-})) %>% mutate(year.class = factor(year.class),
-               decade = factor(year(floor_date(hatch.date, years(10)))),
+})) %>% mutate(decade = factor(year(floor_date(hatch.date, years(10)))),
+               spawn.yday.plot = as.Date(spawn.yday, origin = "1970-01-01"),
                spawn.peak.yday.plot = as.Date(spawn.peak.yday, origin = "1970-01-01"),
                hatch.yday.plot = as.Date(hatch.yday, origin = "1970-01-01"))
 
 
+#### VISUALIZATIONS ------------------------------------------------------------------------------
+
 ggplot(simulation.model.hatch, aes(x = spawn.peak.yday.plot, y = hatch.yday.plot)) +
-  geom_tile(aes(fill = decade)) +
+  geom_tile(aes(fill = decade), color = "gray70") +
   scale_x_date(date_breaks = "2 weeks", date_labels =  "%b %d", expand = c(0, 5)) + 
   scale_y_date(date_breaks = "2 weeks", date_labels =  "%b %d", expand = c(0, 5)) + 
   #scale_x_continuous(limits = c(325, 370), breaks = seq(325, 370, 5), expand = c(0, 0.2)) +
@@ -131,8 +145,7 @@ ggplot(simulation.model.hatch, aes(x = spawn.peak.yday.plot, y = hatch.yday.plot
                                "#fd8d3c", "#fc4e2a", "#e31a1c", "#bd0026", "#800026")) +
   labs(x = "Mean Spawn Date", y = "Hatch Date") +
   theme_few() +
-  theme(panel.background = element_rect(fill = "grey90", colour = "grey90"),
-        axis.title.x = element_text(color = "Black", size = 15, margin = margin(10, 0, 0, 0)),
+  theme(axis.title.x = element_text(color = "Black", size = 15, margin = margin(10, 0, 0, 0)),
         axis.title.y = element_text(color = "Black", size = 15, margin = margin(0, 10, 0, 0)),
         axis.text.x = element_text(size = 10),
         axis.text.y = element_text(size = 10),
@@ -148,6 +161,41 @@ ggsave("figures/lake-superior-apostle-islands/lake-superior-apostle-islands-simu
 
 
 
+ggplot(simulation.model.hatch, aes(x = spawn.yday, y = factor(year.class))) +
+  geom_density_ridges2(aes(fill = scenario), color = "black", stat = "binline", binwidth = 1, scale = 0.95, alpha = 0.5) +
+  #geom_line(data = test2, aes(x = spawn.peak.yday, y = factor(year.class), group = 2)) +
+  #geom_point(data = test2, aes(x = spawn.peak.yday, y = factor(year.class)), group = 2, color = "black", shape = 21) +
+  coord_flip() +
+  theme_bw() +
+  facet_wrap(~scenario, ncol = 1)
 
 
+
+simulation.model.hatch.spawnPlot <- simulation.model.hatch %>% group_by(scenario) %>% distinct(spawn.date, .keep_all = TRUE)
+
+ggplot(simulation.model.hatch.spawnPlot, aes(x = year.class, y = spawn.yday.plot)) +
+  geom_tile(aes(fill = as.numeric(dpf)), color = "gray70") +
+  scale_x_continuous(limits = c(2010, 2100), breaks = seq(2010, 2100, 5), expand = c(0, 0.2)) +
+  scale_y_date(limits = c(as.Date("1970-11-17"), as.Date("1971-01-14")),
+               date_breaks = "7 days", date_labels =  "%b %d", expand = c(0, 0)) + 
+  #scale_y_continuous(limits = c(320, 380), breaks = seq(320, 380, 10), expand = c(0, 0)) +
+  scale_fill_gradient2(limits = c(110, 150), breaks = seq(110, 150, 10),
+                       low = "#ca0020", mid = "#ffffbf", high = "#0571b0", midpoint = 130) +
+  labs(x = "Year", y = "Spawning Date", fill = "Incubation\nLength\n(# of Days)\n") +
+  theme_few() +
+  theme(axis.title.x = element_text(color = "Black", size = 18, margin = margin(10, 0, 0, 0)),
+        axis.title.y = element_text(color = "Black", size = 18, margin = margin(0, 10, 0, 0)),
+        axis.text.x = element_text(angle = 45, hjust = 1, size = 12),
+        axis.text.y = element_text(size = 12),
+        axis.ticks.length = unit(2, 'mm'),
+        legend.title = element_text(size = 15),
+        legend.text = element_text(size = 12),
+        legend.key.width = unit(1.0, 'cm'),
+        legend.key.height = unit(2.0, 'cm'),
+        strip.text = element_text(size = 12),
+        panel.spacing = unit(1.5, "lines"),
+        plot.margin = unit(c(2, 2, 2, 5), 'mm')) +
+  facet_wrap(~scenario)
+
+ggsave("figures/lake-superior-apostle-islands/lake-superior-apostle-islands-simulation-heatmap2.png", width = 18, height = 7, dpi = 300)
 

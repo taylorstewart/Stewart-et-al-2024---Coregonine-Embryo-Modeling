@@ -5,7 +5,7 @@ rm(list = ls(all.names = TRUE))
 
 #### LOAD PACKAGES -----------------------------------------------------------
 
-library(dplyr)
+library(tidyverse)
 library(readxl)
 library(ggplot2)
 library(ggthemes)
@@ -44,11 +44,11 @@ temp.oswego3 <- read_excel("raw-data/lake-ontario/lake-ontario-temp-oswego-river
   mutate(source = "Oswego USGS River Gauge")
 temp.oswego <- bind_rows(temp.oswego1, temp.oswego2, temp.oswego3)
 
-temp.chau <- read_excel("data/lake-ontario/lake-ontario-temp-embayments-bottom.xlsx", sheet = "chaumont-bay") %>% 
+temp.chau <- read_excel("data/lake-ontario/lake-ontario-temperature-embayments-bottom.xlsx", sheet = "chaumont-bay") %>% 
   group_by(date, year) %>% 
   summarize(temp.c = mean(temp.c)) %>% 
   mutate(source = "Chaumont Bay Bottom")
-temp.sodus <- read_excel("data/lake-ontario/lake-ontario-temp-embayments-bottom.xlsx", sheet = "sodus-bay") %>% 
+temp.sodus <- read_excel("data/lake-ontario/lake-ontario-temperature-embayments-bottom.xlsx", sheet = "sodus-bay") %>% 
   group_by(date, year) %>% 
   summarize(temp.c = mean(temp.c)) %>% 
   mutate(source = "Sodus Bay Bottom")
@@ -84,4 +84,17 @@ ggplot(filter(temp.all, year == 2019), aes(x = date, y = temp.c)) +
         legend.text = element_text(size = 12)) #+
   #facet_wrap(~year, scales = "free_x")d
 
-ggsave("figures/LO-WaterTemp.png", dpi = 300, width = 12, height = 6)
+ggsave("figures/lake-ontario/lake-ontario-water-temp-source.png", dpi = 300, width = 12, height = 6)
+
+
+temp.all <- bind_rows(temp.sat, temp.chau, temp.sodus, temp.roch, temp.oswego) %>% 
+  mutate(source = factor(source, ordered = TRUE, levels = c("Chaumont Bay Satellite SWT", "Chaumont Bay Bottom", "Oswego USGS River Gauge", "Sodus Bay Bottom", "Rochester Water Intake")))
+
+temp.all.long <- bind_rows(temp.chau, temp.oswego) %>% 
+  select(-year) %>% 
+  mutate(source = ifelse(source == 'Chaumont Bay Bottom', 'chaum', 'oswego')) %>% 
+  pivot_wider(names_from = "source", values_from = "temp.c") %>% 
+  mutate(temp.diff = oswego-chaum) %>% 
+  filter(!is.na(temp.diff)) %>% ungroup() %>% 
+  summarize(mean.temp.diff = mean(temp.diff))
+
