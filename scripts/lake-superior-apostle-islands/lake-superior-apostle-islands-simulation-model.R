@@ -180,8 +180,10 @@ ggplot(simulation.model.hatch.spawnPlot, aes(x = year.class, y = spawn.yday.plot
                date_breaks = "7 days", date_labels =  "%b %d", expand = c(0, 0)) + 
   #scale_y_continuous(limits = c(320, 380), breaks = seq(320, 380, 10), expand = c(0, 0)) +
   scale_fill_gradient2(limits = c(110, 150), breaks = seq(110, 150, 10),
-                       low = "#ca0020", mid = "#ffffbf", high = "#0571b0", midpoint = 130) +
+                       low = "#d7191c", mid = "#ffffcc", high = "#2c7bb6", midpoint = 130) +
   labs(x = "Year", y = "Spawning Date", fill = "Incubation\nLength\n(# of Days)\n") +
+  guides(fill = guide_colourbar(ticks.colour = "black", ticks.linewidth = 0.75,
+                                frame.colour = "black", frame.linewidth = 1.5)) +
   theme_few() +
   theme(axis.title.x = element_text(color = "Black", size = 18, margin = margin(10, 0, 0, 0)),
         axis.title.y = element_text(color = "Black", size = 18, margin = margin(0, 10, 0, 0)),
@@ -194,6 +196,7 @@ ggplot(simulation.model.hatch.spawnPlot, aes(x = year.class, y = spawn.yday.plot
         legend.key.height = unit(2.0, 'cm'),
         strip.text = element_text(size = 12),
         panel.spacing = unit(1.5, "lines"),
+        panel.border = element_rect(size = 1.5),
         plot.margin = unit(c(2, 2, 2, 5), 'mm')) +
   facet_wrap(~scenario)
 
