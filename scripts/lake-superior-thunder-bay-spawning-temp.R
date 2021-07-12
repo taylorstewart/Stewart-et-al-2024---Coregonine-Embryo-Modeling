@@ -18,25 +18,15 @@ library(lubridateExtras)
 
 #### LOAD TEMPERATURE DATA -----------------------------------------------------------------------
 
-temp.1 <- read_excel("data/lake-superior-thunder-bay/lake-superior-thunder-bay-temperature.xlsx", sheet = "1997")
-temp.2 <- read_excel("data/lake-superior-thunder-bay/lake-superior-thunder-bay-temperature.xlsx", sheet = "1998")
-temp.3 <- read_excel("data/lake-superior-thunder-bay/lake-superior-thunder-bay-temperature.xlsx", sheet = "1999")
-temp.4 <- read_excel("data/lake-superior-thunder-bay/lake-superior-thunder-bay-temperature.xlsx", sheet = "2000")
-temp.5 <- read_excel("data/lake-superior-thunder-bay/lake-superior-thunder-bay-temperature.xlsx", sheet = "2001")
-temp.6 <- read_excel("data/lake-superior-thunder-bay/lake-superior-thunder-bay-temperature.xlsx", sheet = "2002")
-temp.7 <- read_excel("data/lake-superior-thunder-bay/lake-superior-thunder-bay-temperature.xlsx", sheet = "2003")
-temp.8 <- read_excel("data/lake-superior-thunder-bay/lake-superior-thunder-bay-temperature.xlsx", sheet = "2004")
-temp.9 <- read_excel("data/lake-superior-thunder-bay/lake-superior-thunder-bay-temperature.xlsx", sheet = "2005")
-temp.10 <- read_excel("data/lake-superior-thunder-bay/lake-superior-thunder-bay-temperature.xlsx", sheet = "2006")
-temp.11 <- read_excel("data/lake-superior-thunder-bay/lake-superior-thunder-bay-temperature.xlsx", sheet = "2007")
-temp.12 <- read_excel("data/lake-superior-thunder-bay/lake-superior-thunder-bay-temperature.xlsx", sheet = "2018")
-temp.13 <- read_excel("data/lake-superior-thunder-bay/lake-superior-thunder-bay-temperature.xlsx", sheet = "2019")
-temp.14 <- read_excel("data/lake-superior-thunder-bay/lake-superior-thunder-bay-temperature.xlsx", sheet = "2020")
-temp.15 <- read_excel("data/lake-superior-thunder-bay/lake-superior-thunder-bay-temperature.xlsx", sheet = "2021")
+temp.1 <- read_excel("data/lake-superior-thunder-bay/lake-superior-thunder-bay-temperature.xlsx", sheet = "2017")
+temp.2 <- read_excel("data/lake-superior-thunder-bay/lake-superior-thunder-bay-temperature.xlsx", sheet = "2018")
+temp.3 <- read_excel("data/lake-superior-thunder-bay/lake-superior-thunder-bay-temperature.xlsx", sheet = "2019")
+temp.4 <- read_excel("data/lake-superior-thunder-bay/lake-superior-thunder-bay-temperature.xlsx", sheet = "2020")
+temp.5 <- read_excel("data/lake-superior-thunder-bay/lake-superior-thunder-bay-temperature.xlsx", sheet = "2021")
 
-temp.all <- bind_rows(temp.1, temp.2, temp.3, temp.4, temp.5, temp.6, temp.7, temp.8, temp.9, temp.10, temp.11, temp.12, temp.13, temp.14, temp.15) %>% 
+temp.all <- bind_rows(temp.1, temp.2, temp.3, temp.4, temp.5) %>% 
   mutate(yday = yday(date))
-rm(temp.1, temp.2, temp.3, temp.4, temp.5, temp.6, temp.7, temp.8, temp.9, temp.10, temp.11, temp.12, temp.13, temp.14, temp.15)
+rm(temp.1, temp.2, temp.3, temp.4, temp.5)
 
 ## 
 ggplot(temp.all, aes(x = date, y = temp_c)) + 
@@ -63,15 +53,7 @@ spawn.temp <- temp.all %>%
   filter(yday >= spawn$mean.start.yday, yday <= spawn$mean.end.yday) %>% 
   arrange(date) %>%
   filter(row_number() %in% c(1, n())) %>% ungroup() %>% 
-  mutate(spawn.group = rep(c("start", "end"), times = 15)) %>% 
+  mutate(spawn.group = rep(c("start", "end"), times = 5)) %>% 
   group_by(spawn.group) %>% 
   summarize(temp_c = mean(temp_c))
-
-
-
-
-
-  
-
-
 

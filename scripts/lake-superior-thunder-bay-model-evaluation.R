@@ -19,14 +19,15 @@ library(cowplot)
 
 #### LOAD TEMPERATURE DATA -----------------------------------------------------------------------
 
-temp.1 <- read_excel("data/lake-superior-thunder-bay/lake-superior-thunder-bay-temperature.xlsx", sheet = "2018")
-temp.2 <- read_excel("data/lake-superior-thunder-bay/lake-superior-thunder-bay-temperature.xlsx", sheet = "2019")
-temp.3 <- read_excel("data/lake-superior-thunder-bay/lake-superior-thunder-bay-temperature.xlsx", sheet = "2020")
-temp.4 <- read_excel("data/lake-superior-thunder-bay/lake-superior-thunder-bay-temperature.xlsx", sheet = "2021")
+temp.1 <- read_excel("data/lake-superior-thunder-bay/lake-superior-thunder-bay-temperature.xlsx", sheet = "2017")
+temp.2 <- read_excel("data/lake-superior-thunder-bay/lake-superior-thunder-bay-temperature.xlsx", sheet = "2018")
+temp.3 <- read_excel("data/lake-superior-thunder-bay/lake-superior-thunder-bay-temperature.xlsx", sheet = "2019")
+temp.4 <- read_excel("data/lake-superior-thunder-bay/lake-superior-thunder-bay-temperature.xlsx", sheet = "2020")
+temp.5 <- read_excel("data/lake-superior-thunder-bay/lake-superior-thunder-bay-temperature.xlsx", sheet = "2021")
 
-temp.all <- bind_rows(temp.1, temp.2, temp.3, temp.4) %>% 
+temp.all <- bind_rows(temp.1, temp.2, temp.3, temp.4, temp.5) %>% 
   mutate(yday = yday(date))
-rm(temp.1, temp.2, temp.3, temp.4)
+rm(temp.1, temp.2, temp.3, temp.4, temp.5)
 
 ## Calculate a 5-day center moving average to smooth temperature curve
 ## Smoothing prevents issues below trying to find the start and stop from large daily temp deviations
@@ -46,7 +47,7 @@ ggplot(temp.all.ma, aes(x = date, y = temp.ma_c)) +
 #### LOAD DATA WITH SPAWNING START AND END TEMPS -------------------------------------------------
 
 model.locations <- read_excel("data/model-population-parameters.xlsx", sheet = "bio-parameters") %>% 
-  filter(population == "apostle islands")
+  filter(population == "Thunder Bay")
 
 
 #### CALCULATE MEAN SPAWNING DATE ----------------------------------------------------------------
@@ -73,7 +74,7 @@ spawn.period.temp <- temp.all.ma %>%
   left_join(spawn.start.date) %>% 
   left_join(spawn.end.date) %>% 
   mutate(spawn.length_days = as.Date(spawn.end.date) - as.Date(spawn.start.date),
-         spawn.end.date = as.Date(ifelse(spawn.length_days > 30, spawn.start.date+30, spawn.end.date), origin = "1970-01-01"),
+         spawn.end.date = as.Date(ifelse(spawn.length_days > 30, spawn.start.date+20, spawn.end.date), origin = "1970-01-01"),
          spawn.length_days = as.Date(spawn.end.date) - as.Date(spawn.start.date)) %>%
   group_by(year) %>% 
   filter(date >= spawn.start.date, date <= spawn.end.date)
