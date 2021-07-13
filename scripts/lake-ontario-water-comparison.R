@@ -44,6 +44,16 @@ temp.oswego3 <- read_excel("raw-data/lake-ontario/lake-ontario-temp-oswego-river
   mutate(source = "Oswego USGS River Gauge")
 temp.oswego <- bind_rows(temp.oswego1, temp.oswego2, temp.oswego3)
 
+temp.noaa1 <- read_excel("data/lake-ontario/lake-ontario-temperature-NOAA.xlsx", sheet = "2018") %>% 
+  mutate(source = "NOAA")
+temp.noaa2 <- read_excel("data/lake-ontario/lake-ontario-temperature-NOAA.xlsx", sheet = "2019") %>% 
+  mutate(source = "NOAA")
+temp.noaa3 <- read_excel("data/lake-ontario/lake-ontario-temperature-NOAA.xlsx", sheet = "2020") %>% 
+  mutate(source = "NOAA")
+temp.noaa <- bind_rows(temp.noaa1, temp.noaa2, temp.noaa3) %>% 
+  select(date, year, temp.c = temp_c, source)
+
+
 temp.chau <- read_excel("data/lake-ontario/lake-ontario-temperature-embayments-bottom.xlsx", sheet = "chaumont-bay") %>% 
   group_by(date, year) %>% 
   summarize(temp.c = mean(temp.c)) %>% 
@@ -62,8 +72,8 @@ temp.bw <- read_excel("raw-data/lake-ontario/LakeOntario_Chaumont_WaterTemp_BW.x
 
 
 
-temp.all <- bind_rows(temp.sat, temp.chau, temp.sodus, temp.roch, temp.oswego) %>% 
-  mutate(source = factor(source, ordered = TRUE, levels = c("Chaumont Bay Satellite SWT", "Chaumont Bay Bottom", "Oswego USGS River Gauge", "Sodus Bay Bottom", "Rochester Water Intake")))
+temp.all <- bind_rows(temp.sat, temp.chau, temp.sodus, temp.roch, temp.oswego, temp.noaa) %>% 
+  mutate(source = factor(source, ordered = TRUE, levels = c("Chaumont Bay Satellite SWT", "Chaumont Bay Bottom", "Oswego USGS River Gauge", "Sodus Bay Bottom", "Rochester Water Intake", "NOAA")))
 
 
 ggplot(filter(temp.all, year == 2019), aes(x = date, y = temp.c)) + 
@@ -72,7 +82,7 @@ ggplot(filter(temp.all, year == 2019), aes(x = date, y = temp.c)) +
   #geom_point(data = temp.bw, aes(y = temp.c.bottom), shape = 3, size = 4, stroke = 1) +
   labs(y = 'Water Temperature (°C)') + 
   #geom_hline(yintercept = 4) +
-  scale_color_manual(values = c("#1b9e77", "#d95f02", "#7570b3", "#e7298a", "#66a61e")) +
+  scale_color_manual(values = c("#1b9e77", "#d95f02", "#7570b3", "#e7298a", "#66a61e", "black")) +
   scale_x_datetime(date_breaks = "1 month", date_labels =  "%Y-%b-%d") + 
   theme_few() + 
   theme(axis.text.x = element_text(angle = 45, hjust = 1),

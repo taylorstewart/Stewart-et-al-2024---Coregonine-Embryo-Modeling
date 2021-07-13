@@ -68,10 +68,5 @@ spawn.temp <- temp.all %>% left_join(spawn) %>%
   filter(row_number() %in% c(1, n())) %>% ungroup() %>% 
   mutate(spawn.group = rep(c("start", "end"), times = 3)) %>% 
   group_by(spawn.group) %>% 
-  summarize(temp.c = mean(temp.c))
-
-
-  
-
-
+  summarize(temp_c = mean(temp_c))
 

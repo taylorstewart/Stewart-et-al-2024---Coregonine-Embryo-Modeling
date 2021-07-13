@@ -17,19 +17,25 @@ library(cowplot)
 
 #### LOAD TEMPERATURE DATA -----------------------------------------------------------------------
 
-temp.1 <- read_excel("data/lake-ontario/lake-ontario-temperature-oswego-river.xlsx", sheet = "2017")
-temp.2 <- read_excel("data/lake-ontario/lake-ontario-temperature-oswego-river.xlsx", sheet = "2018")
-temp.3 <- read_excel("data/lake-ontario/lake-ontario-temperature-oswego-river.xlsx", sheet = "2019")
-temp.4 <- read_excel("data/lake-ontario/lake-ontario-temperature-oswego-river.xlsx", sheet = "2020")
+temp.1 <- read_excel("data/lake-ontario/lake-ontario-temperature-oswego-river.xlsx", sheet = "2012")
+temp.2 <- read_excel("data/lake-ontario/lake-ontario-temperature-oswego-river.xlsx", sheet = "2013")
+temp.3 <- read_excel("data/lake-ontario/lake-ontario-temperature-oswego-river.xlsx", sheet = "2014")
+temp.4 <- read_excel("data/lake-ontario/lake-ontario-temperature-oswego-river.xlsx", sheet = "2015")
+temp.5 <- read_excel("data/lake-ontario/lake-ontario-temperature-oswego-river.xlsx", sheet = "2016")
+temp.6 <- read_excel("data/lake-ontario/lake-ontario-temperature-oswego-river.xlsx", sheet = "2017")
+temp.7 <- read_excel("data/lake-ontario/lake-ontario-temperature-oswego-river.xlsx", sheet = "2018")
+temp.8 <- read_excel("data/lake-ontario/lake-ontario-temperature-oswego-river.xlsx", sheet = "2019")
+temp.9 <- read_excel("data/lake-ontario/lake-ontario-temperature-oswego-river.xlsx", sheet = "2020")
+temp.10 <- read_excel("data/lake-ontario/lake-ontario-temperature-oswego-river.xlsx", sheet = "2021")
 
-temp.all <- bind_rows(temp.1, temp.2, temp.3, temp.4) %>% 
+temp.all <- bind_rows(temp.1, temp.2, temp.3, temp.4, temp.5, temp.6, temp.7, temp.8, temp.9, temp.10) %>% 
   mutate(yday = yday(date))
-rm(temp.1, temp.2, temp.3, temp.4)
+rm(temp.1, temp.2, temp.3, temp.4, temp.5, temp.6, temp.7, temp.8, temp.9, temp.10)
 
 ## Calculate a 5-day center moving average to smooth temperature curve
 ## Smoothing prevents issues below trying to find the start and stop from large daily temp deviations
 temp.all.ma <- temp.all %>% group_by(year) %>% 
-  mutate(temp.ma_c = frollmean(temp.c, n = 5, align = "center")) %>% 
+  mutate(temp.ma_c = frollmean(temp_c, n = 5, align = "center")) %>% 
   filter(!is.na(temp.ma_c))
 
 ## 
@@ -44,7 +50,7 @@ ggplot(temp.all.ma, aes(x = date, y = temp.ma_c)) +
 #### LOAD DATA WITH SPAWNING START AND END TEMPS -------------------------------------------------
 
 model.locations <- read_excel("data/model-population-parameters.xlsx", sheet = "bio-parameters") %>% 
-  filter(population == "chaumont bay")
+  filter(population == "Chaumont Bay")
 
 
 #### CALCULATE MEAN SPAWNING DATE ----------------------------------------------------------------
