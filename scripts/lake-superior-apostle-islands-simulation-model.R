@@ -7,6 +7,7 @@ library(ggthemes)
 library(lubridate)
 library(gridExtra)
 library(grid)
+library(emmeans)
 
 
 #### CREATE A LIST OF FILES ----------------------------------------------------------------------
@@ -29,6 +30,9 @@ model.locations <- read_excel("data/model-population-parameters.xlsx", sheet = "
 
 model.parameters <- read_excel("data/model-structural-parameters.xlsx", sheet = "coefficients") %>% 
   filter(lake == "Lake Superior")
+
+survival.reg <- read_excel("data/survival-regressions.xlsx", sheet = "survival-regressions") %>% 
+  filter(group == "LS-Cisco")
 
 
 #### FILTER SIMULATION TEMPERATURES TO SPAWNING DEPTH --------------------------------------------
@@ -104,8 +108,10 @@ simulation.model.hatch.LS.APIS <- do.call(rbind, lapply(unique(simulation.data.f
     
     ## Run model for each day in the spawning period
     temp.hatch <- do.call(rbind, lapply(unique(spawn.period.temp.scenario$date), function(k) {
+      ## Filter by scenario and spawning start date
       simulation.data.model <- simulation.data.annual %>% filter(scenario == j, date >= k)
       
+      ## Extract spawning temp, number of spawning days, and number of daily eggs deposited
       spawn.temp_c <- simulation.data.model %>% slice(1) %>% pull(mean.temp_c)
       spawn.length_days <- spawn.period.temp.scenario %>% slice(1) %>% pull(spawn.length_days) %>% as.numeric()
       daily.eggs <- spawn.period.temp.scenario %>% filter(date == k) %>% pull(daily.eggs)
@@ -117,6 +123,18 @@ simulation.model.hatch.LS.APIS <- do.call(rbind, lapply(unique(simulation.data.f
         filter(perc.cum <= 100) %>%
         mutate(ADD = cumsum(mean.temp_c))
       
+      ## Calculate mean and median incubation temperatures
+      simulation.temp <- simulation.data.model.output %>% 
+        summarize(mean.inc.temp_c = mean(mean.temp_c),
+                  median.inc.temp_c = median(mean.temp_c))
+      simulation.temp.numeric <- simulation.temp %>% pull(mean.inc.temp_c)
+      
+      ## Calculate survival estimate
+      surv.est <- survival.reg %>% mutate(interval = between(simulation.temp.numeric, start.temp, end.temp)) %>% 
+        filter(interval == "TRUE") %>% 
+        mutate(surv.est = (m * simulation.temp.numeric) + b) %>% pull(surv.est)
+      embryo.surv <- floor(daily.eggs * surv.est)
+      
       ## Extract hatch date
       simulation.data.model.output.max <- simulation.data.model.output %>% 
         slice(which.max(perc.cum)) %>% 
@@ -127,10 +145,13 @@ simulation.model.hatch.LS.APIS <- do.call(rbind, lapply(unique(simulation.data.f
                spawn.temp_c = spawn.temp_c,
                dpf = as.Date(date)-as.Date(k), 
                hatch.yday = yday(date)) %>% 
-        select(scenario, year.class, spawn.date, spawn.yday, spawn.length_days, spawn.temp_c, hatch.date = date, hatch.yday, hatch.temp_c = mean.temp_c, dpf, ADD)
+        select(scenario, year.class, spawn.date, spawn.yday, spawn.length_days, spawn.temp_c, hatch.date = date, hatch.yday, hatch.temp_c = mean.temp_c, dpf, ADD) %>% 
+        bind_cols(simulation.temp)
       
+      ## Repeat rows to equal cohort size and assign survival
       simulation.data.model.output.max.rep <- simulation.data.model.output.max %>% slice(rep(1:n(), each = daily.eggs)) %>% 
-        mutate(daily.egg.rep = 1:n())
+        mutate(daily.egg.rep = 1:n(),
+               surv = c(rep(1, embryo.surv), rep(0, n()-embryo.surv)))
     })) %>% 
       mutate(spawn.peak.date = mean(spawn.date),
              spawn.peak.yday = yday(spawn.peak.date),
@@ -138,19 +159,16 @@ simulation.model.hatch.LS.APIS <- do.call(rbind, lapply(unique(simulation.data.f
              hatch.peak.date = mean(hatch.date),
              hatch.peak.yday = yday(hatch.peak.date),
              hatch.length_days = length(unique(hatch.yday))) %>% 
-      select(1:3, spawn.peak.date, spawn.peak.yday, 4:7, hatch.peak.date, hatch.peak.yday, 8, hatch.length_days, 9:12)
+      select(1:3, spawn.peak.date, spawn.peak.yday, 4:7, hatch.peak.date, hatch.peak.yday, 8, hatch.length_days, 9:15)
   }))
-})) %>% mutate(decade = factor(year(floor_date(hatch.date, years(10)))),
-               spawn.yday.plot = as.Date(spawn.yday, origin = "1970-01-01"),
-               spawn.peak.yday.plot = as.Date(spawn.peak.yday, origin = "1970-01-01"),
-               hatch.yday.plot = as.Date(hatch.yday, origin = "1970-01-01"))
+}))
 
 
 #### CALCULATE ANOMALY ---------------------------------------------------------------------------
 
 ## historical means across 1900-2005
 simulation.model.hist.mean.LS.APIS <- simulation.model.hatch.LS.APIS %>% 
-  filter(scenario == "Historical") %>% 
+  filter(scenario == "Historical", surv == 1) %>% 
   summarize(mean.hist.spawn.yday = mean(spawn.yday),
             mean.hist.hatch.yday = mean(hatch.yday),
             mean.hist.dpf = mean(dpf)) %>% 
@@ -158,6 +176,7 @@ simulation.model.hist.mean.LS.APIS <- simulation.model.hatch.LS.APIS %>%
 
 ## calculate anomaly
 simulation.anomaly.LS.APIS <- simulation.model.hatch.LS.APIS %>%
+  filter(surv == 1) %>% 
   group_by(scenario) %>% 
   distinct(spawn.date, .keep_all = TRUE) %>% 
   mutate(mean.hist.spawn.yday = simulation.model.hist.mean.LS.APIS$mean.hist.spawn.yday,
@@ -175,7 +194,7 @@ simulation.anomaly.LS.APIS <- simulation.model.hatch.LS.APIS %>%
 trait.list <- c("mean.spawn.yday.anomaly", "mean.hatch.yday.anomaly", "mean.dpf.anomaly")
 
 simulation.anomaly.slope.LS.APIS <- do.call(rbind, lapply(trait.list, function(i) {
-  tmp.rcp <- simulation.anomaly.LS.APIS %>%  select(year.class, scenario, i) %>% 
+  tmp.rcp <- simulation.anomaly.LS.APIS %>%  select(year.class, scenario, all_of(i)) %>% 
     filter(scenario != "Historical") %>% 
     mutate(scenario = gsub(" ", "_", scenario)) %>% 
     pivot_wider(names_from = scenario, values_from = i)
@@ -236,4 +255,4 @@ simulation.anomaly.comp.LS.APIS <- do.call(rbind, lapply(trait.list, function(i)
 write.csv(simulation.anomaly.comp.LS.APIS, "data/anomaly-slopes/lake-superior-apostle-islands-multComp.csv", row.names = FALSE)
 
 ## Clean environment
-rm("simulation.files", "simulation.data", "simulation.data.filt", "model.locations", "model.parameters", "simulation.model.hist.mean.LS.APIS")
+rm("simulation.files", "simulation.data", "simulation.data.filt", "model.locations", "model.parameters", "simulation.model.hist.mean.LS.APIS", "survival.reg")
