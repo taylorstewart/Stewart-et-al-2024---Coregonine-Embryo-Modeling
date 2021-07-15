@@ -15,40 +15,8 @@ source("scripts/lake-ontario-simulation-model.R")
 
 #### PASTE REGRESSION COEFFICIENTS TOGETHER TO MAKE EQUATIONS ------------------------------------
 
-ls.spawn <- filter(simulation.anomaly.slope.LS.APIS, trait == "spawn") %>% 
-  mutate(eq = paste0("y = ", slope, "x ", ifelse(intercept >= 0, "+ ", "- "), abs(intercept)))
-ls.hatch <- filter(simulation.anomaly.slope.LS.APIS, trait == "hatch") %>% 
-  mutate(eq = paste0("y = ", slope, "x ", ifelse(intercept >= 0, "+ ", "- "), abs(intercept)))
-ls.dpf <- filter(simulation.anomaly.slope.LS.APIS, trait == "dpf") %>% 
-  mutate(eq = paste0("y = ", slope, "x ", ifelse(intercept >= 0, "+ ", "- "), abs(intercept)))
-lo.spawn <- filter(simulation.anomaly.slope.LO, trait == "spawn") %>% 
-  mutate(eq = paste0("y = ", slope, "x ", ifelse(intercept >= 0, "+ ", "- "), abs(intercept)))
-lo.hatch <- filter(simulation.anomaly.slope.LO, trait == "hatch") %>% 
-  mutate(eq = paste0("y = ", slope, "x ", ifelse(intercept >= 0, "+ ", "- "), abs(intercept)))
-lo.dpf <- filter(simulation.anomaly.slope.LO, trait == "dpf") %>% 
-  mutate(eq = paste0("y = ", slope, "x ", ifelse(intercept >= 0, "+ ", "- "), abs(intercept)))
-
-
-#### CREATE HTML LABELS WITH REGRESSION EQUATIONS ------------------------------------------------
-
-ls.spawn.HTML <- paste0("<span style='color:#2c7bb6'>", ls.spawn$eq[1], "; R<sup>2</sup> = ", ls.spawn$R2[1], "</span><br>
-<span style='color:#fdae61'>", ls.spawn$eq[2], "; R<sup>2</sup> = ", ls.spawn$R2[2], "</span><br>
-<span style='color:#d7191c'>", ls.spawn$eq[3], "; R<sup>2</sup> = ", ls.spawn$R2[3], "</span>")
-ls.hatch.HTML <- paste0("<span style='color:#2c7bb6'>", ls.hatch$eq[1], "; R<sup>2</sup> = ", ls.hatch$R2[1], "</span><br>
-<span style='color:#fdae61'>", ls.hatch$eq[2], "; R<sup>2</sup> = ", ls.hatch$R2[2], "</span><br>
-<span style='color:#d7191c'>", ls.hatch$eq[3], "; R<sup>2</sup> = ", ls.hatch$R2[3], "</span>")
-ls.dpf.HTML <- paste0("<span style='color:#2c7bb6'>", ls.dpf$eq[1], "; R<sup>2</sup> = ", ls.dpf$R2[1], "</span><br>
-<span style='color:#fdae61'>", ls.dpf$eq[2], "; R<sup>2</sup> = ", ls.dpf$R2[2], "</span><br>
-<span style='color:#d7191c'>", ls.dpf$eq[3], "; R<sup>2</sup> = ", ls.dpf$R2[3], "</span>")
-lo.spawn.HTML <- paste0("<span style='color:#2c7bb6'>", lo.spawn$eq[1], "; R<sup>2</sup> = ", lo.spawn$R2[1], "</span><br>
-<span style='color:#fdae61'>", lo.spawn$eq[2], "; R<sup>2</sup> = ", lo.spawn$R2[2], "</span><br>
-<span style='color:#d7191c'>", lo.spawn$eq[3], "; R<sup>2</sup> = ", lo.spawn$R2[3], "</span>")
-lo.hatch.HTML <- paste0("<span style='color:#2c7bb6'>", lo.hatch$eq[1], "; R<sup>2</sup> = ", lo.hatch$R2[1], "</span><br>
-<span style='color:#fdae61'>", lo.hatch$eq[2], "; R<sup>2</sup> = ", lo.hatch$R2[2], "</span><br>
-<span style='color:#d7191c'>", lo.hatch$eq[3], "; R<sup>2</sup> = ", lo.hatch$R2[3], "</span>")
-lo.dpf.HTML <- paste0("<span style='color:#2c7bb6'>", lo.dpf$eq[1], "; R<sup>2</sup> = ", lo.dpf$R2[1], "</span><br>
-<span style='color:#fdae61'>", lo.dpf$eq[2], "; R<sup>2</sup> = ", lo.dpf$R2[2], "</span><br>
-<span style='color:#d7191c'>", lo.dpf$eq[3], "; R<sup>2</sup> = ", lo.dpf$R2[3], "</span>")
+ls.eq <- simulation.anomaly.slope.LS.APIS %>% mutate(eq = paste0("y = ", slope, "x ", ifelse(intercept >= 0, "+ ", "- "), abs(intercept)))
+lo.eq <- simulation.anomaly.slope.LO %>% mutate(eq = paste0("y = ", slope, "x ", ifelse(intercept >= 0, "+ ", "- "), abs(intercept)))
 
 
 #### VISUALIZATIONS ------------------------------------------------------------------------------
@@ -56,11 +24,18 @@ lo.dpf.HTML <- paste0("<span style='color:#2c7bb6'>", lo.dpf$eq[1], "; R<sup>2</
 ## Lake Superior - Apostle Islands
 plot.spawn.anomaly.LS.APIS <- ggplot(simulation.anomaly.LS.APIS, aes(x = year.class, y = mean.spawn.yday.anomaly, group = scenario)) +
   geom_hline(yintercept = 0, color = "gray70") +
-  geom_line(aes(color = scenario, linetype = scenario),
-            size = 1, alpha = 0.5) + 
-  geom_smooth(data = filter(simulation.anomaly.LS.APIS, scenario != "Historical"), aes(color = scenario), size = 1, method = "lm", se = FALSE, show.legend = FALSE) +
-  geom_richtext(label = ls.spawn.HTML, x = 1905, y = 34.5, size = 4, hjust = 0, vjust = 1,
-                fill = NA, label.color = NA) +
+  geom_line(aes(color = scenario, linetype = scenario), size = 1, alpha = 0.5) + 
+  geom_smooth(data = filter(simulation.anomaly.LS.APIS, scenario != "Historical"), 
+              aes(color = scenario), size = 1, method = "lm", se = FALSE, show.legend = FALSE) +
+  geom_richtext(data = filter(ls.eq, trait == "spawn", scenario == "RCP 2.6"), 
+                aes(label = paste0("<span style='color:#2c7bb6'>", eq, "; R<sup>2</sup> = ", R2, "</span><br>")),
+                x = 1905, y = 34.5, size = 4, hjust = 0, vjust = 1, fill = NA, label.color = NA) +
+  geom_richtext(data = filter(ls.eq, trait == "spawn", scenario == "RCP 6.0"), 
+                aes(label = paste0("<span style='color:#fdae61'>", eq, "; R<sup>2</sup> = ", R2, "</span><br>")),
+                x = 1905, y = 30.2, size = 4, hjust = 0, vjust = 1, fill = NA, label.color = NA) +
+  geom_richtext(data = filter(ls.eq, trait == "spawn", scenario == "RCP 8.5"), 
+                aes(label = paste0("<span style='color:#d7191c'>", eq, "; R<sup>2</sup> = ", R2, "</span><br>")),
+                x = 1905, y = 25.9, size = 4, hjust = 0, vjust = 1, fill = NA, label.color = NA) +
   scale_y_continuous(limits = c(-7, 36), breaks = seq(-5, 35, 5), expand = c(0, 0)) +
   scale_x_continuous(limits = c(1900, 2100), breaks = seq(1900, 2100, 25), expand = c(0, 0.2)) +
   scale_color_manual(values = c("gray50","#2c7bb6", "#fdae61",  "#d7191c")) +
@@ -84,11 +59,17 @@ plot.spawn.anomaly.LS.APIS <- ggplot(simulation.anomaly.LS.APIS, aes(x = year.cl
 
 plot.dpf.anomaly.LS.APIS <- ggplot(simulation.anomaly.LS.APIS, aes(x = year.class, y = mean.dpf.anomaly, group = scenario)) +
   geom_hline(yintercept = 0, color = "gray70") +
-  geom_line(aes(color = scenario, linetype = scenario),
-            size = 1, alpha = 0.5) + 
+  geom_line(aes(color = scenario, linetype = scenario), size = 1, alpha = 0.5) + 
   geom_smooth(data = filter(simulation.anomaly.LS.APIS, scenario != "Historical"), aes(color = scenario), size = 1, method = "lm", se = FALSE, show.legend = FALSE) +
-  geom_richtext(label = ls.dpf.HTML, x = 1905, y = -48.5, size = 4, hjust = 0, vjust = 0,
-                fill = NA, label.color = NA) +
+  geom_richtext(data = filter(ls.eq, trait == "dpf", scenario == "RCP 2.6"), 
+                aes(label = paste0("<span style='color:#2c7bb6'>", eq, "; R<sup>2</sup> = ", R2, "</span><br>")),
+                x = 1905, y = -28.6, size = 4, hjust = 0, vjust = 1, fill = NA, label.color = NA) +
+  geom_richtext(data = filter(ls.eq, trait == "dpf", scenario == "RCP 6.0"), 
+                aes(label = paste0("<span style='color:#fdae61'>", eq, "; R<sup>2</sup> = ", R2, "</span><br>")),
+                x = 1905, y = -34.8, size = 4, hjust = 0, vjust = 1, fill = NA, label.color = NA) +
+  geom_richtext(data = filter(ls.eq, trait == "dpf", scenario == "RCP 8.5"), 
+                aes(label = paste0("<span style='color:#d7191c'>", eq, "; R<sup>2</sup> = ", R2, "</span><br>")),
+                x = 1905, y = -41, size = 4, hjust = 0, vjust = 1, fill = NA, label.color = NA) +
   scale_y_continuous(limits = c(-51, 11), breaks = seq(-50, 10, 10), expand = c(0, 0)) +
   scale_x_continuous(limits = c(1900, 2100), breaks = seq(1900, 2100, 25), expand = c(0, 0.2)) +
   scale_color_manual(values = c("gray50","#2c7bb6", "#fdae61",  "#d7191c")) +
@@ -106,11 +87,17 @@ plot.dpf.anomaly.LS.APIS <- ggplot(simulation.anomaly.LS.APIS, aes(x = year.clas
 
 plot.hatch.anomaly.LS.APIS <- ggplot(simulation.anomaly.LS.APIS, aes(x = year.class, y = mean.hatch.yday.anomaly, group = scenario)) +
   geom_hline(yintercept = 0, color = "gray70") +
-  geom_line(aes(color = scenario, linetype = scenario),
-            size = 1, alpha = 0.5) + 
+  geom_line(aes(color = scenario, linetype = scenario), size = 1, alpha = 0.5) + 
   geom_smooth(data = filter(simulation.anomaly.LS.APIS, scenario != "Historical"), aes(color = scenario), size = 1, method = "lm", se = FALSE, show.legend = FALSE) +
-  geom_richtext(label = ls.hatch.HTML, x = 1905, y = -20.5, size = 4, hjust = 0, vjust = 0,
-                fill = NA, label.color = NA) +
+  geom_richtext(data = filter(ls.eq, trait == "hatch", scenario == "RCP 2.6"), 
+                aes(label = paste0("<span style='color:#2c7bb6'>", eq, "; R<sup>2</sup> = ", R2, "</span><br>")),
+                x = 1905, y = -9.2, size = 4, hjust = 0, vjust = 1, fill = NA, label.color = NA) +
+  geom_richtext(data = filter(ls.eq, trait == "hatch", scenario == "RCP 6.0"), 
+                aes(label = paste0("<span style='color:#fdae61'>", eq, "; R<sup>2</sup> = ", R2, "</span><br>")),
+                x = 1905, y = -12.5, size = 4, hjust = 0, vjust = 1, fill = NA, label.color = NA) +
+  geom_richtext(data = filter(ls.eq, trait == "hatch", scenario == "RCP 8.5"), 
+                aes(label = paste0("<span style='color:#d7191c'>", eq, "; R<sup>2</sup> = ", R2, "</span><br>")),
+                x = 1905, y = -15.8, size = 4, hjust = 0, vjust = 1, fill = NA, label.color = NA) +
   scale_y_continuous(limits = c(-21, 12), breaks = seq(-20, 10, 5), expand = c(0, 0)) +
   scale_x_continuous(limits = c(1900, 2100), breaks = seq(1900, 2100, 25), expand = c(0, 0.2)) +
   scale_color_manual(values = c("gray50","#2c7bb6", "#fdae61",  "#d7191c")) +
@@ -129,11 +116,17 @@ plot.hatch.anomaly.LS.APIS <- ggplot(simulation.anomaly.LS.APIS, aes(x = year.cl
 ## Lake Ontario
 plot.spawn.anomaly.LO <- ggplot(simulation.anomaly.LO, aes(x = year.class, y = mean.spawn.yday.anomaly, group = scenario)) +
   geom_hline(yintercept = 0, color = "gray70") +
-  geom_line(aes(color = scenario, linetype = scenario),
-            size = 1, alpha = 0.5) + 
+  geom_line(aes(color = scenario, linetype = scenario), size = 1, alpha = 0.5) + 
   geom_smooth(data = filter(simulation.anomaly.LO, scenario != "Historical"), aes(color = scenario), size = 1, method = "lm", se = FALSE, show.legend = FALSE) +
-  geom_richtext(label = lo.spawn.HTML, x = 1905, y = 34.5, size = 4, hjust = 0, vjust = 1,
-                fill = NA, label.color = NA) +
+  geom_richtext(data = filter(lo.eq, trait == "spawn", scenario == "RCP 2.6"), 
+                aes(label = paste0("<span style='color:#2c7bb6'>", eq, "; R<sup>2</sup> = ", R2, "</span><br>")),
+                x = 1905, y = 34.5, size = 4, hjust = 0, vjust = 1, fill = NA, label.color = NA) +
+  geom_richtext(data = filter(lo.eq, trait == "spawn", scenario == "RCP 6.0"), 
+                aes(label = paste0("<span style='color:#fdae61'>", eq, "; R<sup>2</sup> = ", R2, "</span><br>")),
+                x = 1905, y = 30.2, size = 4, hjust = 0, vjust = 1, fill = NA, label.color = NA) +
+  geom_richtext(data = filter(lo.eq, trait == "spawn", scenario == "RCP 8.5"), 
+                aes(label = paste0("<span style='color:#d7191c'>", eq, "; R<sup>2</sup> = ", R2, "</span><br>")),
+                x = 1905, y = 25.9, size = 4, hjust = 0, vjust = 1, fill = NA, label.color = NA) +
   scale_y_continuous(limits = c(-7, 36), breaks = seq(-5, 35, 5), expand = c(0, 0)) +
   scale_x_continuous(limits = c(1900, 2100), breaks = seq(1900, 2100, 25), expand = c(0, 0.2)) +
   scale_color_manual(values = c("gray50","#2c7bb6", "#fdae61",  "#d7191c")) +
@@ -153,11 +146,17 @@ plot.spawn.anomaly.LO <- ggplot(simulation.anomaly.LO, aes(x = year.class, y = m
 
 plot.dpf.anomaly.LO <- ggplot(simulation.anomaly.LO, aes(x = year.class, y = mean.dpf.anomaly, group = scenario)) +
   geom_hline(yintercept = 0, color = "gray70") +
-  geom_line(aes(color = scenario, linetype = scenario),
-            size = 1, alpha = 0.5) + 
+  geom_line(aes(color = scenario, linetype = scenario), size = 1, alpha = 0.5) + 
   geom_smooth(data = filter(simulation.anomaly.LO, scenario != "Historical"), aes(color = scenario), size = 1, method = "lm", se = FALSE, show.legend = FALSE) +
-  geom_richtext(label = lo.dpf.HTML, x = 1905, y = -48.5, size = 4, hjust = 0, vjust = 0,
-                fill = NA, label.color = NA) +
+  geom_richtext(data = filter(lo.eq, trait == "dpf", scenario == "RCP 2.6"), 
+                aes(label = paste0("<span style='color:#2c7bb6'>", eq, "; R<sup>2</sup> = ", R2, "</span><br>")),
+                x = 1905, y = -29.1, size = 4, hjust = 0, vjust = 1, fill = NA, label.color = NA) +
+  geom_richtext(data = filter(lo.eq, trait == "dpf", scenario == "RCP 6.0"), 
+                aes(label = paste0("<span style='color:#fdae61'>", eq, "; R<sup>2</sup> = ", R2, "</span><br>")),
+                x = 1905, y = -35.3, size = 4, hjust = 0, vjust = 1, fill = NA, label.color = NA) +
+  geom_richtext(data = filter(lo.eq, trait == "dpf", scenario == "RCP 8.5"), 
+                aes(label = paste0("<span style='color:#d7191c'>", eq, "; R<sup>2</sup> = ", R2, "</span><br>")),
+                x = 1905, y = -41.5, size = 4, hjust = 0, vjust = 1, fill = NA, label.color = NA) +
   scale_y_continuous(limits = c(-51, 11), breaks = seq(-50, 10, 10), expand = c(0, 0)) +
   scale_x_continuous(limits = c(1900, 2100), breaks = seq(1900, 2100, 25), expand = c(0, 0.2)) +
   scale_color_manual(values = c("gray50","#2c7bb6", "#fdae61",  "#d7191c")) +
@@ -174,11 +173,17 @@ plot.dpf.anomaly.LO <- ggplot(simulation.anomaly.LO, aes(x = year.class, y = mea
 
 plot.hatch.anomaly.LO <- ggplot(simulation.anomaly.LO, aes(x = year.class, y = mean.hatch.yday.anomaly, group = scenario)) +
   geom_hline(yintercept = 0, color = "gray70") +
-  geom_line(aes(color = scenario, linetype = scenario),
-            size = 1, alpha = 0.5) + 
+  geom_line(aes(color = scenario, linetype = scenario), size = 1, alpha = 0.5) + 
   geom_smooth(data = filter(simulation.anomaly.LO, scenario != "Historical"), aes(color = scenario), size = 1, method = "lm", se = FALSE, show.legend = FALSE) +
-  geom_richtext(label = lo.hatch.HTML, x = 1905, y = -20.5, size = 4, hjust = 0, vjust = 0,
-                fill = NA, label.color = NA) +
+  geom_richtext(data = filter(lo.eq, trait == "hatch", scenario == "RCP 2.6"), 
+                aes(label = paste0("<span style='color:#2c7bb6'>", eq, "; R<sup>2</sup> = ", R2, "</span><br>")),
+                x = 1905, y = -9.2, size = 4, hjust = 0, vjust = 1, fill = NA, label.color = NA) +
+  geom_richtext(data = filter(lo.eq, trait == "hatch", scenario == "RCP 6.0"), 
+                aes(label = paste0("<span style='color:#fdae61'>", eq, "; R<sup>2</sup> = ", R2, "</span><br>")),
+                x = 1905, y = -12.5, size = 4, hjust = 0, vjust = 1, fill = NA, label.color = NA) +
+  geom_richtext(data = filter(lo.eq, trait == "hatch", scenario == "RCP 8.5"), 
+                aes(label = paste0("<span style='color:#d7191c'>", eq, "; R<sup>2</sup> = ", R2, "</span><br>")),
+                x = 1905, y = -15.8, size = 4, hjust = 0, vjust = 1, fill = NA, label.color = NA) +
   scale_y_continuous(limits = c(-21, 12), breaks = seq(-20, 10, 5), expand = c(0, 0)) +
   scale_x_continuous(limits = c(1900, 2100), breaks = seq(1900, 2100, 25), expand = c(0, 0.2)) +
   scale_color_manual(values = c("gray50","#2c7bb6", "#fdae61",  "#d7191c")) +
