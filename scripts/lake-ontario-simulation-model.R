@@ -3,10 +3,8 @@
 library(tidyverse)
 library(data.table)
 library(readxl)
-library(ggthemes)
 library(lubridate)
-library(gridExtra)
-library(grid)
+library(emmeans)
 
 
 #### CREATE A LIST OF FILES ----------------------------------------------------------------------
@@ -29,6 +27,9 @@ model.locations <- read_excel("data/model-population-parameters.xlsx", sheet = "
 
 model.parameters <- read_excel("data/model-structural-parameters.xlsx", sheet = "coefficients") %>% 
   filter(lake == "Lake Ontario")
+
+survival.reg <- read_excel("data/survival-regressions.xlsx", sheet = "survival-regressions") %>% 
+  filter(group == "LO-Cisco")
 
 
 #### FILTER SIMULATION TEMPERATURES TO SPAWNING DEPTH --------------------------------------------
@@ -104,8 +105,10 @@ simulation.model.hatch.LO <- do.call(rbind, lapply(unique(simulation.data.filt$y
     
     ## Run model for each day in the spawning period
     temp.hatch <- do.call(rbind, lapply(unique(spawn.period.temp.scenario$date), function(k) {
+      ## Filter by scenario and spawning start date
       simulation.data.model <- simulation.data.annual %>% filter(scenario == j, date >= k)
       
+      ## Extract spawning temp, number of spawning days, and number of daily eggs deposited
       spawn.temp_c <- simulation.data.model %>% slice(1) %>% pull(mean.temp_c)
       spawn.length_days <- spawn.period.temp.scenario %>% slice(1) %>% pull(spawn.length_days) %>% as.numeric()
       daily.eggs <- spawn.period.temp.scenario %>% filter(date == k) %>% pull(daily.eggs)
@@ -117,6 +120,18 @@ simulation.model.hatch.LO <- do.call(rbind, lapply(unique(simulation.data.filt$y
         filter(perc.cum <= 100) %>%
         mutate(ADD = cumsum(mean.temp_c))
       
+      ## Calculate mean and median incubation temperatures
+      simulation.temp <- simulation.data.model.output %>% 
+        summarize(mean.inc.temp_c = mean(mean.temp_c),
+                  median.inc.temp_c = median(mean.temp_c))
+      simulation.temp.numeric <- simulation.temp %>% pull(mean.inc.temp_c)
+      
+      ## Calculate survival estimate
+      surv.est <- survival.reg %>% mutate(interval = between(simulation.temp.numeric, start.temp, end.temp)) %>% 
+        filter(interval == "TRUE") %>% 
+        mutate(surv.est = (m * simulation.temp.numeric) + b) %>% pull(surv.est)
+      embryo.surv <- floor(daily.eggs * surv.est)
+      
       ## Extract hatch date
       simulation.data.model.output.max <- simulation.data.model.output %>% 
         slice(which.max(perc.cum)) %>% 
@@ -127,10 +142,13 @@ simulation.model.hatch.LO <- do.call(rbind, lapply(unique(simulation.data.filt$y
                spawn.temp_c = spawn.temp_c,
                dpf = as.Date(date)-as.Date(k), 
                hatch.yday = yday(date)) %>% 
-        select(scenario, year.class, spawn.date, spawn.yday, spawn.length_days, spawn.temp_c, hatch.date = date, hatch.yday, hatch.temp_c = mean.temp_c, dpf, ADD)
+        select(scenario, year.class, spawn.date, spawn.yday, spawn.length_days, spawn.temp_c, hatch.date = date, hatch.yday, hatch.temp_c = mean.temp_c, dpf, ADD) %>% 
+        bind_cols(simulation.temp)
       
+      ## Repeat rows to equal cohort size and assign survival
       simulation.data.model.output.max.rep <- simulation.data.model.output.max %>% slice(rep(1:n(), each = daily.eggs)) %>% 
-        mutate(daily.egg.rep = 1:n())
+        mutate(daily.egg.rep = 1:n(),
+               surv = c(rep(1, embryo.surv), rep(0, n()-embryo.surv)))
     })) %>% 
       mutate(spawn.peak.date = mean(spawn.date),
              spawn.peak.yday = yday(spawn.peak.date),
@@ -138,19 +156,16 @@ simulation.model.hatch.LO <- do.call(rbind, lapply(unique(simulation.data.filt$y
              hatch.peak.date = mean(hatch.date),
              hatch.peak.yday = yday(hatch.peak.date),
              hatch.length_days = length(unique(hatch.yday))) %>% 
-      select(1:3, spawn.peak.date, spawn.peak.yday, 4:7, hatch.peak.date, hatch.peak.yday, 8, hatch.length_days, 9:12)
+      select(1:3, spawn.peak.date, spawn.peak.yday, 4:7, hatch.peak.date, hatch.peak.yday, 8, hatch.length_days, 9:15)
   }))
-})) %>% mutate(decade = factor(year(floor_date(hatch.date, years(10)))),
-               spawn.yday.plot = as.Date(spawn.yday, origin = "1970-01-01"),
-               spawn.peak.yday.plot = as.Date(spawn.peak.yday, origin = "1970-01-01"),
-               hatch.yday.plot = as.Date(hatch.yday, origin = "1970-01-01"))
+}))
 
 
 #### CALCULATE ANOMALY ---------------------------------------------------------------------------
 
 ## historical means across 1900-2005
 simulation.model.hist.mean.LO <- simulation.model.hatch.LO %>% 
-  filter(scenario == "Historical") %>% 
+  filter(scenario == "Historical", surv == 1) %>% 
   summarize(mean.hist.spawn.yday = mean(spawn.yday),
             mean.hist.hatch.yday = mean(hatch.yday),
             mean.hist.dpf = mean(dpf)) %>% 
@@ -158,6 +173,7 @@ simulation.model.hist.mean.LO <- simulation.model.hatch.LO %>%
 
 ## calculate anomaly
 simulation.anomaly.LO <- simulation.model.hatch.LO %>%
+  filter(surv == 1) %>% 
   group_by(scenario) %>% 
   distinct(spawn.date, .keep_all = TRUE) %>% 
   mutate(mean.hist.spawn.yday = simulation.model.hist.mean.LO$mean.hist.spawn.yday,
@@ -175,7 +191,7 @@ simulation.anomaly.LO <- simulation.model.hatch.LO %>%
 trait.list <- c("mean.spawn.yday.anomaly", "mean.hatch.yday.anomaly", "mean.dpf.anomaly")
 
 simulation.anomaly.slope.LO <- do.call(rbind, lapply(trait.list, function(i) {
-  tmp.rcp <- simulation.anomaly.LO %>%  select(year.class, scenario, i) %>% 
+  tmp.rcp <- simulation.anomaly.LO %>%  select(year.class, scenario, all_of(i)) %>% 
     filter(scenario != "Historical") %>% 
     mutate(scenario = gsub(" ", "_", scenario)) %>% 
     pivot_wider(names_from = scenario, values_from = i)
@@ -185,21 +201,27 @@ simulation.anomaly.slope.LO <- do.call(rbind, lapply(trait.list, function(i) {
   lm.6.0 <- lm(RCP_6.0 ~ year.class, data = tmp.rcp)
   lm.8.5 <- lm(RCP_8.5 ~ year.class, data = tmp.rcp)
   
+  ## extract intercept
+  intercept.2.6 <- coef(lm.2.6)[1]
+  intercept.6.0 <- coef(lm.6.0)[1]
+  intercept.8.5 <- coef(lm.8.5)[1]
+  
   ## extract slopes
-  coef.2.6 <- coef(lm.2.6)[2]
-  coef.6.0 <- coef(lm.6.0)[2]
-  coef.8.5 <- coef(lm.8.5)[2]
+  slope.2.6 <- coef(lm.2.6)[2]
+  slope.6.0 <- coef(lm.6.0)[2]
+  slope.8.5 <- coef(lm.8.5)[2]
   
   ## extract r^2
   R2.2.6 <- summary(lm.2.6)$r.squared
   R2.6.0 <- summary(lm.6.0)$r.squared
   R2.8.5 <- summary(lm.8.5)$r.squared
   
-  
+  ##
   slopes <- data.frame(trait = rep(str_split(i, "[.]", simplify = TRUE)[1,2], 3),
                        scenario = c("RCP 2.6", "RCP 6.0", "RCP 8.5"),
-                       slope = c(coef.2.6, coef.6.0, coef.8.5),
-                       R2 = c(R2.2.6, R2.6.0, R2.8.5))
+                       intercept = round(c(intercept.2.6, intercept.6.0, intercept.8.5), 2),
+                       slope = round(c(slope.2.6, slope.6.0, slope.8.5), 2),
+                       R2 = round(c(R2.2.6, R2.6.0, R2.8.5), 2))
 }))
 
 write.csv(simulation.anomaly.slope.LO, "data/anomaly-slopes/lake-ontario-slope.csv", row.names = FALSE)
@@ -235,5 +257,5 @@ simulation.anomaly.comp.LO <- do.call(rbind, lapply(trait.list, function(i) {
 
 write.csv(simulation.anomaly.comp.LO, "data/anomaly-slopes/lake-ontario-multComp.csv", row.names = FALSE)
 
-
-rm("simulation.files", "simulation.data", "simulation.data.filt", "model.locations", "model.parameters", "simulation.model.hist.mean.LO", "trait.list")
+## Clean environment
+rm("simulation.files", "simulation.data", "simulation.data.filt", "model.locations", "model.parameters", "simulation.model.hist.mean.LO", "survival.reg")

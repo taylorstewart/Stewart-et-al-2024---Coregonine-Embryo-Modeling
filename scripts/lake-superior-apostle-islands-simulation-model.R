@@ -3,10 +3,7 @@
 library(tidyverse)
 library(data.table)
 library(readxl)
-library(ggthemes)
 library(lubridate)
-library(gridExtra)
-library(grid)
 library(emmeans)
 
 
@@ -204,10 +201,15 @@ simulation.anomaly.slope.LS.APIS <- do.call(rbind, lapply(trait.list, function(i
   lm.6.0 <- lm(RCP_6.0 ~ year.class, data = tmp.rcp)
   lm.8.5 <- lm(RCP_8.5 ~ year.class, data = tmp.rcp)
   
+  ## extract intercept
+  intercept.2.6 <- coef(lm.2.6)[1]
+  intercept.6.0 <- coef(lm.6.0)[1]
+  intercept.8.5 <- coef(lm.8.5)[1]
+  
   ## extract slopes
-  coef.2.6 <- coef(lm.2.6)[2]
-  coef.6.0 <- coef(lm.6.0)[2]
-  coef.8.5 <- coef(lm.8.5)[2]
+  slope.2.6 <- coef(lm.2.6)[2]
+  slope.6.0 <- coef(lm.6.0)[2]
+  slope.8.5 <- coef(lm.8.5)[2]
   
   ## extract r^2
   R2.2.6 <- summary(lm.2.6)$r.squared
@@ -217,8 +219,9 @@ simulation.anomaly.slope.LS.APIS <- do.call(rbind, lapply(trait.list, function(i
   ##
   slopes <- data.frame(trait = rep(str_split(i, "[.]", simplify = TRUE)[1,2], 3),
                        scenario = c("RCP 2.6", "RCP 6.0", "RCP 8.5"),
-                       slope = c(coef.2.6, coef.6.0, coef.8.5),
-                       R2 = c(R2.2.6, R2.6.0, R2.8.5))
+                       intercept = round(c(intercept.2.6, intercept.6.0, intercept.8.5), 2),
+                       slope = round(c(slope.2.6, slope.6.0, slope.8.5), 2),
+                       R2 = round(c(R2.2.6, R2.6.0, R2.8.5), 2))
 }))
 
 write.csv(simulation.anomaly.slope.LS.APIS, "data/anomaly-slopes/lake-superior-apostle-islands-slope.csv", row.names = FALSE)
