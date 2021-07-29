@@ -9,17 +9,10 @@ library(tidync)
 library(dplyr)
 library(stringr)
 
-
-climate.files.watertemp.geneva <- grep(pattern = "(?=.*simstrat)(?=.*watertemp)(?=.*geneva)",
-                                       x = list.files(path = "/Volumes/home/Coregonine-Modeling-ClimateSimulations", recursive = TRUE, full.names = TRUE),
-                                       value = TRUE, perl = TRUE)
-climate.files.watertemp.bourget <- grep(pattern = "(?=.*simstrat)(?=.*watertemp)(?=.*bourget)",
-                                        x = list.files(path = "/Volumes/home/Coregonine-Modeling-ClimateSimulations", recursive = TRUE, full.names = TRUE),
-                                        value = TRUE, perl = TRUE)
-climate.files.watertemp.annecy <- grep(pattern = "(?=.*simstrat)(?=.*watertemp)(?=.*annecy)",
-                                       x = list.files(path = "/Volumes/home/Coregonine-Modeling-ClimateSimulations", recursive = TRUE, full.names = TRUE),
-                                       value = TRUE, perl = TRUE)
-climate.files.watertemp <- c(climate.files.watertemp.geneva, climate.files.watertemp.bourget, climate.files.watertemp.annecy)
+z
+climate.files.watertemp <- grep(pattern = "(?=.*simstrat)(?=.*watertemp)",
+                                x = list.files(path = "/Users/taylor/Downloads", recursive = TRUE, full.names = TRUE),
+                                value = TRUE, perl = TRUE)
 climate.files.bottemp <- grep(pattern = "(?=.*simstrat)(?=.*bottemp)",
                                 x = list.files(path = "/Volumes/home/Coregonine-Modeling-ClimateSimulations", recursive = TRUE, full.names = TRUE),
                                 value = TRUE, perl = TRUE)
