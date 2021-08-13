@@ -29,7 +29,7 @@ model.parameters <- read_excel("data/model-structural-parameters.xlsx", sheet = 
   filter(lake == "Lake Superior")
 
 survival.reg <- read_excel("data/survival-regressions.xlsx", sheet = "survival-regressions") %>% 
-  filter(group == "LS-Cisco")
+  filter(lake == "Lake Superior")
 
 
 #### FILTER SIMULATION TEMPERATURES TO SPAWNING DEPTH --------------------------------------------

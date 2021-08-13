@@ -23,13 +23,13 @@ simulation.data <- do.call(rbind, lapply(simulation.files, function(i) {
 #### LOAD LAKE-SPECIFIC BIOLOGICAL PARAMETERS ----------------------------------------------------
 
 model.locations <- read_excel("data/model-population-parameters.xlsx", sheet = "bio-parameters") %>% 
-  filter(population == "Konnevesi", species == "lavaretus")
+  filter(population == "Konnevesi", species == "albula")
 
 model.parameters <- read_excel("data/model-structural-parameters.xlsx", sheet = "coefficients") %>% 
-  filter(lake == "Lake Southern Konnevesi", species == "lavaretus")
+  filter(lake == "Lake Southern Konnevesi", species == "albula")
 
 survival.reg <- read_excel("data/survival-regressions.xlsx", sheet = "survival-regressions") %>% 
-  filter(lake == "Lake Southern Konnevesi", species == "lavaretus")
+  filter(lake == "Lake Southern Konnevesi", species == "albula")
 
 
 #### FILTER SIMULATION TEMPERATURES TO SPAWNING DEPTH --------------------------------------------
@@ -164,7 +164,7 @@ simulation.model.hatch.LK <- do.call(rbind, lapply(unique(simulation.data.filt$y
 #### CALCULATE ANOMALY ---------------------------------------------------------------------------
 
 ## historical means across 1900-2005
-simulation.model.hist.mean.LS.APIS <- simulation.model.hatch.LS.APIS %>% 
+simulation.model.hist.mean.LK <- simulation.model.hatch.LK %>% 
   filter(scenario == "Historical", surv == 1) %>% 
   summarize(mean.hist.spawn.yday = mean(spawn.yday),
             mean.hist.hatch.yday = mean(hatch.yday),
@@ -172,13 +172,13 @@ simulation.model.hist.mean.LS.APIS <- simulation.model.hatch.LS.APIS %>%
   select(mean.hist.spawn.yday, mean.hist.hatch.yday, mean.hist.dpf)
 
 ## calculate anomaly
-simulation.anomaly.LS.APIS <- simulation.model.hatch.LS.APIS %>%
+simulation.anomaly.LK <- simulation.model.hatch.LK %>%
   filter(surv == 1) %>% 
   group_by(scenario) %>% 
   distinct(spawn.date, .keep_all = TRUE) %>% 
-  mutate(mean.hist.spawn.yday = simulation.model.hist.mean.LS.APIS$mean.hist.spawn.yday,
-         mean.hist.hatch.yday = simulation.model.hist.mean.LS.APIS$mean.hist.hatch.yday,
-         mean.hist.dpf = simulation.model.hist.mean.LS.APIS$mean.hist.dpf) %>% 
+  mutate(mean.hist.spawn.yday = simulation.model.hist.mean.LK$mean.hist.spawn.yday,
+         mean.hist.hatch.yday = simulation.model.hist.mean.LK$mean.hist.hatch.yday,
+         mean.hist.dpf = simulation.model.hist.mean.LK$mean.hist.dpf) %>% 
   mutate(spawn.yday.anomaly = spawn.yday - mean.hist.spawn.yday,
          hatch.yday.anomaly = hatch.yday - mean.hist.hatch.yday,
          dpf.anomaly = dpf - mean.hist.dpf) %>% 
@@ -190,8 +190,8 @@ simulation.anomaly.LS.APIS <- simulation.model.hatch.LS.APIS %>%
 ##
 trait.list <- c("mean.spawn.yday.anomaly", "mean.hatch.yday.anomaly", "mean.dpf.anomaly")
 
-simulation.anomaly.slope.LS.APIS <- do.call(rbind, lapply(trait.list, function(i) {
-  tmp.rcp <- simulation.anomaly.LS.APIS %>%  select(year.class, scenario, all_of(i)) %>% 
+simulation.anomaly.slope.LK <- do.call(rbind, lapply(trait.list, function(i) {
+  tmp.rcp <- simulation.anomaly.LK %>%  select(year.class, scenario, all_of(i)) %>% 
     filter(scenario != "Historical") %>% 
     mutate(scenario = gsub(" ", "_", scenario)) %>% 
     pivot_wider(names_from = scenario, values_from = i)
@@ -224,11 +224,11 @@ simulation.anomaly.slope.LS.APIS <- do.call(rbind, lapply(trait.list, function(i
                        R2 = round(c(R2.2.6, R2.6.0, R2.8.5), 2))
 }))
 
-write.csv(simulation.anomaly.slope.LS.APIS, "data/anomaly-slopes/lake-superior-apostle-islands-slope.csv", row.names = FALSE)
+write.csv(simulation.anomaly.slope.LK, "data/anomaly-slopes/lake-konnevesi-slope.csv", row.names = FALSE)
 
 
-simulation.anomaly.comp.LS.APIS <- do.call(rbind, lapply(trait.list, function(i) {
-  tmp.rcp.factor <- simulation.anomaly.LS.APIS %>%  select(year.class, scenario, i) %>% 
+simulation.anomaly.comp.LK <- do.call(rbind, lapply(trait.list, function(i) {
+  tmp.rcp.factor <- simulation.anomaly.LK %>%  select(year.class, scenario, i) %>% 
     filter(scenario != "Historical") %>% 
     mutate(year.class = factor(year.class),
            scenario = factor(scenario))
@@ -255,7 +255,7 @@ simulation.anomaly.comp.LS.APIS <- do.call(rbind, lapply(trait.list, function(i)
   }
 }))
 
-write.csv(simulation.anomaly.comp.LS.APIS, "data/anomaly-slopes/lake-superior-apostle-islands-multComp.csv", row.names = FALSE)
+write.csv(simulation.anomaly.comp.LK, "data/anomaly-slopes/lake-konnevesi-multComp.csv", row.names = FALSE)
 
 ## Clean environment
-rm("simulation.files", "simulation.data", "simulation.data.filt", "model.locations", "model.parameters", "simulation.model.hist.mean.LS.APIS", "survival.reg")
+rm("simulation.files", "simulation.data", "simulation.data.filt", "model.locations", "model.parameters", "simulation.model.hist.mean.LK", "survival.reg")

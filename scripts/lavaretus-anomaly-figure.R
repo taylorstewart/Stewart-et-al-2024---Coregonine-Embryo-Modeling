@@ -9,7 +9,8 @@ library(grid)
 
 #### LOAD DATA FROM OTHER SCRIPTS ----------------------------------------------------------------
 
-source("scripts/lake-geneva/lake-geneva-simulation-model.R")
+#source("scripts/lake-geneva-simulation-model.R")
+source("scripts/lake-constance-simulation-model.R")
 
 
 #### PASTE REGRESSION COEFFICIENTS TOGETHER TO MAKE EQUATIONS ------------------------------------
@@ -22,8 +23,7 @@ lc.eq <- simulation.anomaly.slope.LC %>% mutate(eq = paste0("y = ", slope, "x ",
 ## Lake Constance
 plot.spawn.anomaly.LC <- ggplot(simulation.anomaly.LC, aes(x = year.class, y = mean.spawn.yday.anomaly, group = scenario)) +
   geom_hline(yintercept = 0, color = "gray70") +
-  geom_line(aes(color = scenario, linetype = scenario),
-            size = 1, alpha = 0.9) + 
+  geom_line(aes(color = scenario, linetype = scenario), size = 1, alpha = 0.5) + 
   geom_smooth(data = filter(simulation.anomaly.LC, scenario != "Historical"), 
               aes(color = scenario), size = 1, method = "lm", se = FALSE, show.legend = FALSE) +
   geom_richtext(data = filter(lc.eq, trait == "spawn", scenario == "RCP 2.6"), 
@@ -57,9 +57,9 @@ plot.spawn.anomaly.LC <- ggplot(simulation.anomaly.LC, aes(x = year.class, y = m
 
 plot.dpf.anomaly.LC <- ggplot(simulation.anomaly.LC, aes(x = year.class, y = mean.dpf.anomaly, group = scenario)) +
   geom_hline(yintercept = 0, color = "gray70") +
-  geom_line(aes(color = scenario, linetype = scenario),
-            size = 1, alpha = 0.9) + 
-  geom_smooth(data = filter(simulation.anomaly.LC, scenario != "Historical"), aes(color = scenario), size = 1, method = "lm", se = FALSE, show.legend = FALSE) +
+  geom_line(aes(color = scenario, linetype = scenario), size = 1, alpha = 0.5) + 
+  geom_smooth(data = filter(simulation.anomaly.LC, scenario != "Historical"), 
+              aes(color = scenario), size = 1, method = "lm", se = FALSE, show.legend = FALSE) +
   geom_richtext(data = filter(lc.eq, trait == "dpf", scenario == "RCP 2.6"), 
                 aes(label = paste0("<span style='color:#2c7bb6'>", eq, "; R<sup>2</sup> = ", R2, "</span><br>")),
                 x = 1905, y = -28.6, size = 4, hjust = 0, vjust = 1, fill = NA, label.color = NA) +
@@ -86,19 +86,19 @@ plot.dpf.anomaly.LC <- ggplot(simulation.anomaly.LC, aes(x = year.class, y = mea
 
 plot.hatch.anomaly.LC <- ggplot(simulation.anomaly.LC, aes(x = year.class, y = mean.hatch.yday.anomaly, group = scenario)) +
   geom_hline(yintercept = 0, color = "gray70") +
-  geom_line(aes(color = scenario, linetype = scenario),
-            size = 1, alpha = 0.9) + 
-  geom_smooth(data = filter(simulation.anomaly.LC, scenario != "Historical"), aes(color = scenario), size = 1, method = "lm", se = FALSE, show.legend = FALSE) +
+  geom_line(aes(color = scenario, linetype = scenario), size = 1, alpha = 0.5) + 
+  geom_smooth(data = filter(simulation.anomaly.LC, scenario != "Historical"), 
+              aes(color = scenario), size = 1, method = "lm", se = FALSE, show.legend = FALSE) +
   geom_richtext(data = filter(lc.eq, trait == "hatch", scenario == "RCP 2.6"), 
                 aes(label = paste0("<span style='color:#2c7bb6'>", eq, "; R<sup>2</sup> = ", R2, "</span><br>")),
-                x = 1905, y = -9.2, size = 4, hjust = 0, vjust = 1, fill = NA, label.color = NA) +
+                x = 1905, y = -10.5, size = 4, hjust = 0, vjust = 1, fill = NA, label.color = NA) +
   geom_richtext(data = filter(lc.eq, trait == "hatch", scenario == "RCP 6.0"), 
                 aes(label = paste0("<span style='color:#fdae61'>", eq, "; R<sup>2</sup> = ", R2, "</span><br>")),
-                x = 1905, y = -12.5, size = 4, hjust = 0, vjust = 1, fill = NA, label.color = NA) +
+                x = 1905, y = -14.0, size = 4, hjust = 0, vjust = 1, fill = NA, label.color = NA) +
   geom_richtext(data = filter(lc.eq, trait == "hatch", scenario == "RCP 8.5"), 
                 aes(label = paste0("<span style='color:#d7191c'>", eq, "; R<sup>2</sup> = ", R2, "</span><br>")),
-                x = 1905, y = -15.8, size = 4, hjust = 0, vjust = 1, fill = NA, label.color = NA) +
-  scale_y_continuous(limits = c(-21, 12), breaks = seq(-20, 10, 5), expand = c(0, 0)) +
+                x = 1905, y = -17.5, size = 4, hjust = 0, vjust = 1, fill = NA, label.color = NA) +
+  scale_y_continuous(limits = c(-23, 12), breaks = seq(-20, 5, 5), expand = c(0, 0)) +
   scale_x_continuous(limits = c(1900, 2100), breaks = seq(1900, 2100, 25), expand = c(0, 0.2)) +
   scale_color_manual(values = c("gray50","#2c7bb6", "#fdae61",  "#d7191c")) +
   scale_linetype_manual(values = c("solid", "longdash", "twodash", "solid")) +
@@ -129,4 +129,4 @@ plot.all <- grid.arrange(
   heights = c(0.075, 1)
 )
 
-ggsave("figures/constance-simulation-anomaly.png", plot = plot.all, width = 7, height = 10, dpi = 300)
+ggsave("figures/lavaretus-simulation-anomaly.png", plot = plot.all, width = 7, height = 10, dpi = 300)
