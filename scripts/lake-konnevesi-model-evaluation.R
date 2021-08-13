@@ -5,10 +5,11 @@ rm(list = ls(all.names = TRUE))
 
 #### LOAD PACKAGES -----------------------------------------------------------
 
+library(tidyverse)
 library(ggplot2)
 library(lubridate)
 library(ggthemes)
-library(dplyr)
+library(data.table)
 library(readxl)
 library(gridExtra)
 library(grid)
@@ -17,214 +18,141 @@ library(cowplot)
 
 #### LOAD TEMPERATURE DATA -----------------------------------------------------------------------
 
-temp.1 <- read_excel("data/lake-konnevesi/lake-konnevesi-temperature.xlsx", sheet = "2018")
-temp.2 <- read_excel("data/lake-konnevesi/lake-konnevesi-temperature.xlsx", sheet = "2019")
+temp.1 <- read_excel("data/lake-konnevesi/lake-konnevesi-temperature.xlsx", sheet = "2019") %>% filter(depth_m == 4.5, !is.na(temp_c))
+temp.2 <- read_excel("data/lake-konnevesi/lake-konnevesi-temperature.xlsx", sheet = "2020") %>% filter(depth_m == 4.5, !is.na(temp_c))
+temp.3 <- read_excel("data/lake-konnevesi/lake-konnevesi-temperature.xlsx", sheet = "2021") %>% filter(depth_m == 4.5, !is.na(temp_c))
 
-temp.all <- bind_rows(temp.1, temp.2) %>% 
-  mutate(jday = yday(date),
-         date2 = as.Date(ifelse(jday > 250, paste0("2019-", month, "-", day), paste0("2020-", month, "-", day)), format = "%Y-%m-%d"))
-rm(temp.1, temp.2)
+temp.all <- bind_rows(temp.1, temp.2, temp.3) %>% 
+  mutate(yday = yday(date))
+rm(temp.1, temp.2, temp.3)
+
+## Calculate a 5-day center moving average to smooth temperature curve
+## Smoothing prevents issues below trying to find the start and stop from large daily temp deviations
+temp.all.ma <- temp.all %>% group_by(year) %>% 
+  mutate(temp.ma_c = frollmean(temp_c, n = 5, align = "center")) %>% 
+  filter(!is.na(temp.ma_c))
 
 ## 
-ggplot(temp.all, aes(x = date2, y = temp.c.ma)) + 
+ggplot(temp.all.ma, aes(x = date, y = temp.ma_c)) + 
   geom_line() + theme_few() + 
   ylab('Water Temperature (°C)') + 
-  scale_x_date(date_breaks = "1 month", date_labels =  "%b %d") + 
+  scale_x_datetime(date_breaks = "1 month", date_labels =  "%b %d") + 
   theme(axis.text.x = element_text(angle = 90, hjust = 1))  + 
-  facet_wrap(~year)
+  facet_wrap(~year, scales = "free_x")
 
 
 #### CALCULATE MEAN SPAWNING DATE ----------------------------------------------------------------
 
-mu.spawn.albula <- temp.all %>% group_by(year) %>% 
-  filter(spawning.albula == "y") %>% 
-  summarize(mu.spawn = as.Date(mean(date), format = "%Y-%m-%d")) %>% 
-  left_join(., temp.all, by = c("mu.spawn" = "date", "year")) %>% 
-  select(year, mu.spawn, temp.spawn = temp.c.ma)
-mu.spawn.lavaretus <- temp.all %>% group_by(year) %>% 
-  filter(spawning.lavaretus == "y") %>% 
-  summarize(mu.spawn = as.Date(mean(date), format = "%Y-%m-%d")) %>% 
-  left_join(., temp.all, by = c("mu.spawn" = "date", "year")) %>% 
-  select(year, mu.spawn, temp.spawn = temp.c.ma)
+spawn.start <- read_excel("data/lake-konnevesi/lake-konnevesi-spawning.xlsx", sheet = "lake-konnevesi-spawning") %>%
+  group_by(year) %>% 
+  filter(row_number() == 1) %>% 
+  select(year, start.date = date)
+spawn.end <- read_excel("data/lake-konnevesi/lake-konnevesi-spawning.xlsx", sheet = "lake-konnevesi-spawning") %>%
+  group_by(year) %>% 
+  filter(row_number() == n()) %>% 
+  select(year, end.date = date)
+spawn <- left_join(spawn.start, spawn.end)
+
+
+## Combine start and end dates; Filter to each day in spawning period
+mu.spawn <- temp.all.ma %>% 
+  left_join(spawn) %>% 
+  group_by(year) %>% 
+  filter(date >= start.date, date <= end.date) %>% 
+  summarize(mu.spawn.date = mean(date))
 
 
 #### CALCULATE MEAN HATCHING DATE ----------------------------------------------------------------
 
-mu.hatch.albula <- temp.all %>% group_by(year) %>% 
-  filter(hatching.albula == "y") %>% 
-  summarize(mu.hatch = as.Date(mean(date), format = "%Y-%m-%d")) %>% 
-  left_join(., temp.all, by = c("mu.hatch" = "date", "year")) %>% 
-  select(year, mu.hatch, temp.hatch = temp.c.ma)
-mu.hatch.lavaretus <- temp.all %>% group_by(year) %>% 
-  filter(hatching.lavaretus == "y") %>% 
-  summarize(mu.hatch = as.Date(mean(date), format = "%Y-%m-%d")) %>% 
-  left_join(., temp.all, by = c("mu.hatch" = "date", "year")) %>% 
-  select(year, mu.hatch, temp.hatch = temp.c.ma)
-
-
-## Filter temp profiles by start and end dates, calculate daily degree-days
-
-temp.albula.filter <- left_join(mu.spawn.albula, mu.hatch.albula) %>% 
-  left_join(temp.all, .) %>% 
+mu.hatch <- read_excel("data/lake-konnevesi/lake-konnevesi-hatching.xlsx", sheet = "lake-konnevesi-hatching") %>% 
   group_by(year) %>% 
-  filter(date >= mu.spawn, date <= mu.hatch) %>% 
-  mutate(ADD = cumsum(temp.c.ma))
-temp.lavaretus.filter <- left_join(mu.spawn.lavaretus, mu.hatch.lavaretus) %>% 
-  left_join(temp.all, .) %>% 
+  summarize(mu.hatch.date = as.Date(mean(date), format = "%Y-%m-%d"))
+
+
+#### FILTER TEMP PROFILES BY SPAWNING AND HATCHING DATES -----------------------------------------
+
+temp.inc <- temp.all.ma %>% left_join(mu.spawn) %>%
+  left_join(mu.hatch) %>% 
   group_by(year) %>% 
-  filter(date >= mu.spawn, date <= mu.hatch) %>% 
-  mutate(ADD = cumsum(temp.c.ma))
+  filter(date >= mu.spawn.date, date <= mu.hatch.date) %>% 
+  select(-mu.spawn.date, -mu.hatch.date)
 
 ## Find ADD at hatch
-temp.albula.ADD <- temp.albula.filter %>% group_by(year) %>% 
-  filter(ADD == max(ADD))
-temp.lavaretus.ADD <- temp.lavaretus.filter %>% group_by(year) %>% 
-  filter(ADD == max(ADD))
+temp.ADD <- temp.inc %>% group_by(year) %>% 
+  mutate(ADD = cumsum(temp.ma_c)) %>% 
+  filter(ADD == max(ADD)) %>% 
+  select(date, year, temp.ma_c, ADD)
 
 
-#### VENDACE MODELS ------------------------------------------------------------------------------
+#### EUROPEAN WHITEFISH MODELS -------------------------------------------------------------------
 
 ## Polynomial: y = a + bx + cx^2
 ## Semilog: log10(y) = log10(a) + log10(b)x + log10(c)x^2
 ## Antilog: 10^(log(y))
 
 ## Luczynski and Kirklewska, 1984
-model.LK <- data.frame(a = -2.303495, b = 0.065057, c = 0.000434)
+model.LK <- read_excel("data/model-structural-parameters.xlsx", sheet = "coefficients") %>% 
+  filter(lake == "Lake Kosno")
+  #filter(lake == "Lake Constance", species == "lavaretus macrophthalmus")
 
 ## Take antilog from daily semilog output, accumulate across days
-model.LK.perc <- temp.all %>% left_join(mu.spawn.albula) %>% 
+model.LK.perc <- temp.all.ma %>% left_join(mu.spawn) %>% 
   group_by(year) %>% 
-  filter(date >= mu.spawn) %>% 
-  mutate(perc.day = (10^(model.LK$a + model.LK$b * temp.c.ma + model.LK$c * temp.c.ma^2))*100,
+  filter(date >= mu.spawn.date) %>% 
+  mutate(perc.day = (10^(model.LK$a + model.LK$b * temp.ma_c + model.LK$c * temp.ma_c^2))*100,
          perc.cum = cumsum(perc.day)) %>% 
   filter(perc.cum <= 100) %>%
-  mutate(ADD = cumsum(temp.c.ma))
+  mutate(ADD = cumsum(temp.ma_c))
 
 model.LK.perc.max <- model.LK.perc %>% group_by(year) %>% 
   filter(perc.cum == max(perc.cum)) %>% 
-  select(date, year, temp.c.ma, ADD) %>% 
+  select(date, year, temp.ma_c, ADD) %>% 
   mutate(model = "LK")
 
 
 ## Stewart et al. 2021
-model.data.albula.ST <- read_excel("/Users/taylor/SynologyDrive/Cisco-Climate-Change/Coregonine-Temp-Embryo/data/Coregonine-Temperature-Experiment-FI-Hatch.xlsx", sheet = "2019HatchingData") %>% 
-  filter(species == "albula") %>% 
-  mutate(eye = as.numeric(eye),
-         hatch = as.numeric(hatch)) %>% 
-  filter(!is.na(eye), !is.na(hatch), !is.na(dpf), hatch == 1, include.incubation == "y") %>% 
-  rename(temp.c = temperature) %>%
-  group_by(temp.c, dpf) %>% 
-  summarize(n = n()) %>% ungroup() %>%
-  arrange(temp.c, dpf) %>% 
-  group_by(temp.c) %>% 
-  mutate(total.n = sum(n),
-         prop.n = n/total.n,
-         cum.prop = cumsum(prop.n)) %>% 
-  filter(abs(cum.prop - 0.5) == min(abs(cum.prop - 0.5))) %>% 
-  mutate(dpf.recip = dpf^-1,
-         log.dpf.recip = log10(dpf.recip))
-
-## Fit Semilog Model
-model.albula.ST <- lm(log.dpf.recip ~ temp.c + I(temp.c^2), data = model.data.albula.ST)
+model.konnevesi <- read_excel("data/model-structural-parameters.xlsx", sheet = "coefficients") %>% 
+  filter(lake == "Lake Southern Konnevesi", species == "albula")
 
 ## Take antilog from daily semilog output, accumulate across days
-model.albula.ST.perc <- temp.all %>% left_join(mu.spawn.albula) %>% 
+model.ST.perc <- temp.all.ma %>% left_join(mu.spawn) %>% 
   group_by(year) %>% 
-  filter(date >= mu.spawn) %>% 
-  mutate(perc.day = (10^(coef(model.albula.ST)[[1]] + coef(model.albula.ST)[[2]] * temp.c.ma + coef(model.albula.ST)[[3]] * temp.c.ma^2))*100,
+  filter(date >= mu.spawn.date) %>% 
+  mutate(perc.day = (10^(model.konnevesi$a + model.konnevesi$b * temp.ma_c + model.konnevesi$c * temp.ma_c^2))*100,
          perc.cum = cumsum(perc.day),) %>% 
   filter(perc.cum <= 100) %>%
-  mutate(ADD = cumsum(temp.c.ma))
+  mutate(ADD = cumsum(temp.ma_c))
 
-model.albula.ST.perc.max <- model.albula.ST.perc %>% group_by(year) %>% 
+model.ST.perc.max <- model.ST.perc %>% group_by(year) %>% 
   filter(perc.cum == max(perc.cum)) %>% 
-  select(date, year, temp.c.ma, ADD) %>% 
-  mutate(model = "ST")
-
-
-#### EUROPEAN WHITEFISH MODELS -------------------------------------------------------------------
-
-## Eckmann 1987 (uses natural log)
-model.EC <- data.frame(a = -2.300162, b = 0.110354, c = -0.003094489)
-
-## Take antilog from daily semilog output, accumulate across days
-model.EC.perc <- temp.all %>% left_join(mu.spawn.lavaretus) %>% 
-  group_by(year) %>% 
-  filter(date >= mu.spawn) %>% 
-  mutate(perc.day = (10^(model.EC$a + model.EC$b * temp.c.ma + model.EC$c * temp.c.ma^2))*100,
-         perc.cum = cumsum(perc.day),) %>% 
-  filter(perc.cum <= 100) %>%
-  mutate(ADD = cumsum(temp.c.ma))
-
-model.EC.perc.max <- model.EC.perc %>% group_by(year) %>% 
-  filter(perc.cum == max(perc.cum)) %>% 
-  select(date, year, temp.c.ma, ADD) %>% 
-  mutate(model = "EC")
-
-
-## Stewart et al. 2021
-model.data.lavaretus.ST <- read_excel("/Users/taylor/SynologyDrive/Cisco-Climate-Change/Coregonine-Temp-Embryo/data/Coregonine-Temperature-Experiment-FI-Hatch.xlsx", sheet = "2019HatchingData") %>% 
-  filter(species == "lavaretus") %>% 
-  mutate(eye = as.numeric(eye),
-         hatch = as.numeric(hatch)) %>% 
-  filter(!is.na(eye), !is.na(hatch), !is.na(dpf), hatch == 1, include.incubation == "y") %>% 
-  rename(temp.c = temperature) %>%
-  group_by(temp.c, dpf) %>% 
-  summarize(n = n()) %>% ungroup() %>%
-  arrange(temp.c, dpf) %>% 
-  group_by(temp.c) %>% 
-  mutate(total.n = sum(n),
-         prop.n = n/total.n,
-         cum.prop = cumsum(prop.n)) %>% 
-  filter(abs(cum.prop - 0.5) == min(abs(cum.prop - 0.5))) %>% 
-  mutate(dpf.recip = dpf^-1,
-         log.dpf.recip = log10(dpf.recip))
-
-## Fit Semilog Model
-model.lavaretus.ST <- lm(log.dpf.recip ~ temp.c + I(temp.c^2), data = model.data.lavaretus.ST)
-
-## Take antilog from daily semilog output, accumulate across days
-model.lavaretus.ST.perc <- temp.all %>% left_join(mu.spawn.lavaretus) %>% 
-  group_by(year) %>% 
-  filter(date >= mu.spawn) %>% 
-  mutate(perc.day = (10^(coef(model.lavaretus.ST)[[1]] + coef(model.lavaretus.ST)[[2]] * temp.c.ma + coef(model.lavaretus.ST)[[3]] * temp.c.ma^2))*100,
-         perc.cum = cumsum(perc.day),) %>% 
-  filter(perc.cum <= 100) %>%
-  mutate(ADD = cumsum(temp.c.ma))
-
-model.lavaretus.ST.perc.max <- model.lavaretus.ST.perc %>% group_by(year) %>% 
-  filter(perc.cum == max(perc.cum)) %>% 
-  select(date, year, temp.c.ma, ADD) %>% 
+  select(date, year, temp.ma_c, ADD) %>% 
   mutate(model = "ST")
 
 
 #### COMBINE ALL MODEL HATCHING ESTIMATES --------------------------------------------------------
 
-model.hatching.albula <- mu.hatch.albula %>% 
-  rename(date = "mu.hatch", temp.c.ma = "temp.hatch") %>% 
-  left_join(temp.albula.filter) %>% 
-  select(date, year, temp.c.ma, ADD) %>% 
+model.hatching.all <- temp.ADD %>% 
   mutate(model = "EP") %>% 
-  bind_rows(., model.LK.perc.max, model.albula.ST.perc.max) %>% 
+  bind_rows(., model.ST.perc.max, model.LK.perc.max) %>% 
   mutate(model = factor(model, ordered = TRUE, levels = c("EP", "ST", "LK")),
-         jday = yday(date))
+         yday = yday(date))
 
-model.hatching.lavaretus <- mu.hatch.lavaretus %>% 
-  rename(date = "mu.hatch", temp.c.ma = "temp.hatch") %>% 
-  left_join(temp.lavaretus.filter) %>% 
-  select(date, year, temp.c.ma, ADD) %>% 
-  mutate(model = "EP") %>% 
-  bind_rows(., model.EC.perc.max, model.lavaretus.ST.perc.max) %>% 
-  mutate(model = factor(model, ordered = TRUE, levels = c("EP", "ST", "EC")),
-         jday = yday(date))
+model.hatching.all.comp <- model.hatching.all %>% 
+  group_by(model) %>% 
+  summarize(mean.yday = mean(yday)) %>% 
+  select(model, mean.yday) %>% 
+  pivot_wider(names_from = model, values_from = mean.yday) %>% 
+  mutate(diff = EP-ST)
 
 
 #### VISUALIZATIONS ------------------------------------------------------------------------------
 
-ggplot(temp.all, aes(x = date, y = temp.c.ma)) + 
+ggplot(temp.all.ma, aes(x = date, y = temp.ma_c)) + 
   geom_line(size = 0.8) +
-  geom_vline(data = mu.spawn.albula, aes(xintercept = as.POSIXct(mu.spawn)), color = "gray25", linetype = "dashed", show.legend = FALSE) +
-  geom_point(data = model.hatching.albula, aes(x = as.POSIXct(date), y = temp.c.ma, fill = model, shape = model), size = 3) +
+  geom_vline(data = data.frame(year = unique(temp.all.ma$year), 
+                               date = temp.inc %>% group_by(year) %>% slice(1) %>% pull(date)),
+             aes(xintercept = date), color = "gray25", linetype = "dashed", show.legend = FALSE) +
+  geom_point(data = model.hatching.all, aes(x = as.POSIXct(date), y = temp.ma_c, fill = model, shape = model), size = 3) +
   scale_shape_manual("", values = c(21, 22, 23),
                      labels = c("Empirical Hatching  ", "Stewart et al., 2021  ", "Luczynski & Kirklewska, 1984")) +
   scale_fill_manual("", values = c("lightsalmon", "cornflowerblue", "forestgreen"),
@@ -242,10 +170,10 @@ ggplot(temp.all, aes(x = date, y = temp.c.ma)) +
         panel.spacing = unit(1, "lines")) + 
   facet_wrap(~year, scales = "free_x")
 
-ggsave("figures/LakeKonnevesi-Albula-ModelComparison.png", height = 5.5, width = 9.5, dpi = 300)
+ggsave("figures/lake-konnevesi/lake-konnevesi-albula-model-comparison.png", height = 5.5, width = 9.5, dpi = 300)
 
 
-plot.add.albula <- ggplot(model.hatching.albula, aes(x = factor(year), y = ADD, group = model)) +
+plot.add <- ggplot(model.hatching.all, aes(x = factor(year), y = ADD, group = model)) +
   geom_point(aes(fill = model, shape = model), size = 3) + 
   scale_shape_manual("", values = c(21, 22, 23),
                      labels = c("Empirical Hatching  ", "Stewart et al., 2021  ", "Luczynski & Kirklewska, 1984")) +
@@ -262,7 +190,7 @@ plot.add.albula <- ggplot(model.hatching.albula, aes(x = factor(year), y = ADD, 
         strip.text = element_text(size = 12),
         panel.spacing = unit(1, "lines"))
 
-plot.date.albula <- ggplot(model.hatching.albula, aes(x = factor(year), y = jday, group = model)) +
+plot.date <- ggplot(model.hatching.all, aes(x = factor(year), y = yday, group = model)) +
   geom_point(aes(fill = model, shape = model), size = 3) + 
   scale_shape_manual("", values = c(21, 22, 23),
                      labels = c("Empirical Hatching  ", "Stewart et al., 2021  ", "Luczynski & Kirklewska, 1984")) +
@@ -280,14 +208,14 @@ plot.date.albula <- ggplot(model.hatching.albula, aes(x = factor(year), y = jday
         panel.spacing = unit(1, "lines"))
 
 ## Combine all figures
-plot.all.albula <- grid.arrange(
-  arrangeGrob(get_legend(plot.add.albula),
+plot.all <- grid.arrange(
+  arrangeGrob(get_legend(plot.add),
               nrow = 1,
               ncol = 1),
   arrangeGrob(
-    arrangeGrob(plot.add.albula + theme(legend.position = "none", axis.title.x = element_blank()),
+    arrangeGrob(plot.add + theme(legend.position = "none", axis.title.x = element_blank()),
                 nrow = 1),
-    arrangeGrob(plot.date.albula + theme(legend.position = "none", axis.title.x = element_blank()), 
+    arrangeGrob(plot.date + theme(legend.position = "none", axis.title.x = element_blank()), 
                 nrow = 1),
     ncol = 2,
     widths = c(1, 1)
@@ -295,84 +223,5 @@ plot.all.albula <- grid.arrange(
   heights = c(0.05, 1.0)
 )
 
-ggsave("figures/LakeKonnevesi-Albula-ADD-Jday.png", plot = plot.all.albula, width = 8, height = 5, dpi = 300)
-
-
-# VISUALIZATION -------------------------------------------------------------------------------
-
-ggplot(temp.all, aes(x = date, y = temp.c.ma)) + 
-  geom_line(size = 0.8) +
-  geom_vline(data = mu.spawn.lavaretus, aes(xintercept = as.POSIXct(mu.spawn)), color = "gray25", linetype = "dashed", show.legend = FALSE) +
-  geom_point(data = model.hatching.lavaretus, aes(x = as.POSIXct(date), y = temp.c.ma, fill = model, shape = model), size = 3) +
-  scale_shape_manual("", values = c(21, 22, 23),
-                     labels = c("Empirical Hatching  ", "Stewart et al., 2021  ", "Eckmann, 1987")) +
-  scale_fill_manual("", values = c("lightsalmon", "cornflowerblue", "forestgreen"),
-                    labels = c("Empirical Hatching  ", "Stewart et al., 2021  ", "Eckmann, 1987")) +
-  scale_x_datetime(date_breaks = "1 month", date_labels =  "%b %d") + 
-  labs(y = "Water Temperature (°C)") + 
-  theme_few() + 
-  theme(axis.text.x = element_text(angle = 45, hjust = 1),
-        axis.text = element_text(size = 12),
-        axis.title.y = element_text(size = 15),
-        axis.title.x = element_blank(),
-        legend.position = "top", 
-        legend.text = element_text(size = 15),
-        strip.text = element_text(size = 12),
-        panel.spacing = unit(1, "lines")) + 
-  facet_wrap(~year, scales = "free_x")
-
-ggsave("figures/LakeKonnevesi-Lavaretus-ModelComparison.png", height = 5.5, width = 9.5, dpi = 300)
-
-
-plot.add.lavaretus <- ggplot(model.hatching.lavaretus, aes(x = factor(year), y = ADD, group = model)) +
-  geom_point(aes(fill = model, shape = model), size = 3) + 
-  scale_shape_manual("", values = c(21, 22, 23),
-                     labels = c("Empirical Hatching  ", "Stewart et al., 2021  ", "Eckmann, 1987")) +
-  scale_fill_manual("", values = c("lightsalmon", "cornflowerblue", "forestgreen"),
-                    labels = c("Empirical Hatching  ", "Stewart et al., 2021  ", "Eckmann, 1987")) +
-  labs(y = "Degree-days") +
-  theme_few() + 
-  theme(axis.text.x = element_text(angle = 45, hjust = 1),
-        axis.text = element_text(size = 12),
-        axis.title.y = element_text(size = 15),
-        axis.title.x = element_blank(),
-        legend.position = "top", 
-        legend.text = element_text(size = 15),
-        strip.text = element_text(size = 12),
-        panel.spacing = unit(1, "lines"))
-
-plot.date.lavaretus <- ggplot(model.hatching.lavaretus, aes(x = factor(year), y = jday, group = model)) +
-  geom_point(aes(fill = model, shape = model), size = 3) + 
-  scale_shape_manual("", values = c(21, 22, 23),
-                     labels = c("Empirical Hatching  ", "Stewart et al., 2021  ", "Eckmann, 1987")) +
-  scale_fill_manual("", values = c("lightsalmon", "cornflowerblue", "forestgreen"),
-                    labels = c("Empirical Hatching  ", "Stewart et al., 2021  ", "Eckmann, 1987")) +
-  labs(y = "Julian Date") +
-  theme_few() + 
-  theme(axis.text.x = element_text(angle = 45, hjust = 1),
-        axis.text = element_text(size = 12),
-        axis.title.y = element_text(size = 15),
-        axis.title.x = element_blank(),
-        legend.position = "top", 
-        legend.text = element_text(size = 15),
-        strip.text = element_text(size = 12),
-        panel.spacing = unit(1, "lines"))
-
-## Combine all figures
-plot.all.lavaretus <- grid.arrange(
-  arrangeGrob(get_legend(plot.add.lavaretus),
-              nrow = 1,
-              ncol = 1),
-  arrangeGrob(
-    arrangeGrob(plot.add.lavaretus + theme(legend.position = "none", axis.title.x = element_blank()),
-                nrow = 1),
-    arrangeGrob(plot.date.lavaretus + theme(legend.position = "none", axis.title.x = element_blank()), 
-                nrow = 1),
-    ncol = 2,
-    widths = c(1, 1)
-  ),
-  heights = c(0.05, 1.0)
-)
-
-ggsave("figures/LakeKonnevesi-Lavaretus-ADD-Jday.png", plot = plot.all.lavaretus, width = 8, height = 5, dpi = 300)
+#ggsave("figures/lake-konnevesi/lake-konnevesi-model-comparison-point.png", plot = plot.all, width = 8, height = 5, dpi = 300)
 

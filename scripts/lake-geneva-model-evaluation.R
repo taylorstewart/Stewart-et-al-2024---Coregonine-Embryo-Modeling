@@ -34,7 +34,7 @@ temp.all.ma <- temp.all %>% group_by(year) %>%
   filter(!is.na(temp.ma_c))
 
 ## 
-ggplot(temp.all, aes(x = date2, y = temp.c)) + 
+ggplot(temp.all, aes(x = date2, y = temp_c)) + 
   geom_line() + theme_few() + 
   ylab('Water Temperature (°C)') + 
   scale_x_date(date_breaks = "1 month", date_labels =  "%b %d") + 
