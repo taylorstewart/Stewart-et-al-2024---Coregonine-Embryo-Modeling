@@ -31,12 +31,14 @@ temp.all.ma <- temp.all %>% group_by(year) %>%
   filter(!is.na(temp.ma_c))
 
 ## 
-ggplot(temp.all, aes(x = date, y = temp_c)) + 
+ggplot(temp.all.ma, aes(x = date, y = temp.ma_c)) + 
   geom_line() + theme_few() + 
   ylab('Water Temperature (°C)') + 
   scale_x_datetime(date_breaks = "1 month", date_labels =  "%b %d") + 
   theme(axis.text.x = element_text(angle = 90, hjust = 1))  + 
   facet_wrap(~year, scales = "free_x")
+
+
 
 model.locations <- read_excel("data/model-population-parameters.xlsx", sheet = "bio-parameters") %>% 
   filter(population == "Annecy")
@@ -93,18 +95,18 @@ mu.hatch <- read_excel("data/lake-annecy/lake-annecy-hatching.xlsx", sheet = "la
 ## Filter temp profiles by start and end dates, calculate daily degree-days
 
 if(mu.spawn > 0 & mu.spawn < 30) {
-  temp.inc <- temp.all %>% group_by(year) %>% filter(yday >= mu.spawn, yday < mu.hatch)
+  temp.inc <- temp.all.ma %>% group_by(year) %>% filter(yday >= mu.spawn, yday < mu.hatch)
 } else {
-  temp.spawn <- temp.all %>% group_by(year) %>% filter(yday >= mu.spawn)
-  temp.hatch <- temp.all %>% group_by(year) %>% filter(yday <= mu.hatch)
+  temp.spawn <- temp.all.ma %>% group_by(year) %>% filter(yday >= mu.spawn)
+  temp.hatch <- temp.all.ma %>% group_by(year) %>% filter(yday <= mu.hatch)
   temp.inc <- bind_rows(temp.spawn, temp.hatch) 
 }
 
 ## Find ADD at hatch
 temp.ADD <- temp.inc %>% group_by(year) %>% 
-  mutate(ADD = cumsum(temp_c)) %>% 
+  mutate(ADD = cumsum(temp.ma_c)) %>% 
   filter(ADD == max(ADD)) %>% 
-  select(date, year, temp_c, ADD)
+  select(date, year, temp.ma_c, ADD)
 
 
 #### EUROPEAN WHITEFISH MODELS -------------------------------------------------------------------
@@ -121,14 +123,14 @@ model.EC <- read_excel("data/model-structural-parameters.xlsx", sheet = "coeffic
 model.EC.perc <- temp.all.ma %>%
   group_by(year) %>% 
   filter(date >= as.Date(mu.spawn, origin = paste0(year, "-01-01"))) %>% 
-  mutate(perc.day = (10^(model.EC$a + model.EC$b * temp_c + model.EC$c * temp_c^2))*100,
+  mutate(perc.day = (10^(model.EC$a + model.EC$b * temp.ma_c + model.EC$c * temp.ma_c^2))*100,
          perc.cum = cumsum(perc.day),) %>% 
   filter(perc.cum <= 100) %>%
-  mutate(ADD = cumsum(temp_c))
+  mutate(ADD = cumsum(temp.ma_c))
 
 model.EC.perc.max <- model.EC.perc %>% group_by(year) %>% 
   filter(perc.cum == max(perc.cum)) %>% 
-  select(date, year, temp_c, ADD) %>% 
+  select(date, year, temp.ma_c, ADD) %>% 
   mutate(model = "EC")
 
 
@@ -140,14 +142,14 @@ model.annecy <- read_excel("data/model-structural-parameters.xlsx", sheet = "coe
 model.annecy.perc <- temp.all.ma %>%
   group_by(year) %>% 
   filter(date >= as.Date(mu.spawn, origin = paste0(year, "-01-01"))) %>% 
-  mutate(perc.day = (10^(model.annecy$a + model.annecy$b * temp_c))*100,
+  mutate(perc.day = (10^(model.annecy$a + model.annecy$b * temp.ma_c))*100,
          perc.cum = cumsum(perc.day)) %>% 
   filter(perc.cum <= 100) %>%
-  mutate(ADD = cumsum(temp_c))
+  mutate(ADD = cumsum(temp.ma_c))
 
 model.annecy.perc.max <- model.annecy.perc %>% group_by(year) %>% 
   filter(perc.cum == max(perc.cum)) %>% 
-  select(date, year, temp_c, ADD) %>% 
+  select(date, year, temp.ma_c, ADD) %>% 
   mutate(model = "AN")
 
 
@@ -170,12 +172,12 @@ model.hatching.all.comp <- model.hatching.all %>%
 
 #### VISUALIZATIONS ------------------------------------------------------------------------------
 
-ggplot(temp.all.ma, aes(x = date, y = temp_c)) + 
+ggplot(temp.all.ma, aes(x = date, y = temp.ma_c)) + 
   geom_line(size = 0.8) +
   geom_vline(data = data.frame(year = unique(temp.all.ma$year), 
                                date = temp.inc %>% group_by(year) %>% slice(1) %>% pull(date)),
              aes(xintercept = date), color = "gray25", linetype = "dashed", show.legend = FALSE) +
-  geom_point(data = model.hatching.all, aes(x = as.POSIXct(date), y = temp_c, fill = model, shape = model), size = 3) +
+  geom_point(data = model.hatching.all, aes(x = as.POSIXct(date), y = temp.ma_c, fill = model, shape = model), size = 3) +
   scale_shape_manual("", values = c(21, 22, 23),
                      labels = c("Observed Hatching", "Unpublished Thonon Data  ", "Eckmann, 1987")) +
   scale_fill_manual("", values = c("lightsalmon", "cornflowerblue", "forestgreen"),

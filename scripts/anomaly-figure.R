@@ -106,7 +106,7 @@ plot.hatch.anomaly.LS.APIS <- ggplot(simulation.anomaly.LS.APIS, aes(x = year.cl
   geom_richtext(data = filter(ls.eq, trait == "hatch", scenario == "RCP 8.5"), 
                 aes(label = paste0("<span style='color:#d7191c'><b>", eq, "; R<sup>2</sup> = ", R2, "</b></span><br>")),
                 x = 1905, y = -18.0, size = 5.0, hjust = 0, vjust = 1, fill = NA, label.color = NA) +
-  scale_y_continuous(limits = c(-23, 12), breaks = seq(-20, 5, 5), expand = c(0, 0)) +
+  scale_y_continuous(limits = c(-23, 12), breaks = seq(-20, 10, 5), expand = c(0, 0)) +
   scale_x_continuous(limits = c(1900, 2100), breaks = seq(1900, 2100, 25), expand = c(0, 0.2)) +
   scale_color_manual(values = c("gray50","#2c7bb6", "#fdae61",  "#d7191c")) +
   scale_linetype_manual(values = c("solid", "longdash", "twodash", "solid")) +
@@ -194,7 +194,7 @@ plot.hatch.anomaly.LO <- ggplot(simulation.anomaly.LO, aes(x = year.class, y = m
   geom_richtext(data = filter(lo.eq, trait == "hatch", scenario == "RCP 8.5"), 
                 aes(label = paste0("<span style='color:#d7191c'><b>", eq, "; R<sup>2</sup> = ", R2, "</b></span><br>")),
                 x = 1905, y = -18.0, size = 5.0, hjust = 0, vjust = 1, fill = NA, label.color = NA) +
-  scale_y_continuous(limits = c(-23, 12), breaks = seq(-20, 5, 5), expand = c(0, 0)) +
+  scale_y_continuous(limits = c(-23, 12), breaks = seq(-20, 10, 5), expand = c(0, 0)) +
   scale_x_continuous(limits = c(1900, 2100), breaks = seq(1900, 2100, 25), expand = c(0, 0.2)) +
   scale_color_manual(values = c("gray50","#2c7bb6", "#fdae61",  "#d7191c")) +
   scale_linetype_manual(values = c("solid", "longdash", "twodash", "solid")) +
@@ -284,7 +284,7 @@ plot.hatch.anomaly.LK <- ggplot(simulation.anomaly.LK, aes(x = year.class, y = m
   geom_richtext(data = filter(lk.eq, trait == "hatch", scenario == "RCP 8.5"), 
                 aes(label = paste0("<span style='color:#d7191c'><b>", eq, "; R<sup>2</sup> = ", R2, "</b></span><br>")),
                 x = 1905, y = -18.0, size = 5.0, hjust = 0, vjust = 1, fill = NA, label.color = NA) +
-  scale_y_continuous(limits = c(-23, 12), breaks = seq(-20, 5, 5), expand = c(0, 0)) +
+  scale_y_continuous(limits = c(-23, 12), breaks = seq(-20, 10, 5), expand = c(0, 0)) +
   scale_x_continuous(limits = c(1900, 2100), breaks = seq(1900, 2100, 25), expand = c(0, 0.2)) +
   scale_color_manual(values = c("gray50","#2c7bb6", "#fdae61",  "#d7191c")) +
   scale_linetype_manual(values = c("solid", "longdash", "twodash", "solid")) +
@@ -374,7 +374,7 @@ plot.hatch.anomaly.LC <- ggplot(simulation.anomaly.LC, aes(x = year.class, y = m
   geom_richtext(data = filter(lc.eq, trait == "hatch", scenario == "RCP 8.5"), 
                 aes(label = paste0("<span style='color:#d7191c'><b>", eq, "; R<sup>2</sup> = ", R2, "</b></span><br>")),
                 x = 1905, y = -18.0, size = 5.0, hjust = 0, vjust = 1, fill = NA, label.color = NA) +
-  scale_y_continuous(limits = c(-23, 12), breaks = seq(-20, 5, 5), expand = c(0, 0)) +
+  scale_y_continuous(limits = c(-23, 12), breaks = seq(-20, 10, 5), expand = c(0, 0)) +
   scale_x_continuous(limits = c(1900, 2100), breaks = seq(1900, 2100, 25), expand = c(0, 0.2)) +
   scale_color_manual(values = c("gray50","#2c7bb6", "#fdae61",  "#d7191c")) +
   scale_linetype_manual(values = c("solid", "longdash", "twodash", "solid")) +

@@ -17,32 +17,34 @@ library(cowplot)
 
 #### LOAD TEMPERATURE DATA -----------------------------------------------------------------------
 
-temp.1 <- read_excel("data/lake-geneva/lake-geneva-temperature-sonde-interpolated.xlsx", sheet = "2013")
-temp.2 <- read_excel("data/lake-geneva/lake-geneva-temperature-sonde-interpolated.xlsx", sheet = "2014")
-temp.3 <- read_excel("data/lake-geneva/lake-geneva-temperature-sonde-interpolated.xlsx", sheet = "2015")
+temp.1 <- read_excel("data/lake-geneva/lake-geneva-temperature-littoral.xlsx", sheet = "2016")
+temp.2 <- read_excel("data/lake-geneva/lake-geneva-temperature-littoral.xlsx", sheet = "2017")
+temp.3 <- read_excel("data/lake-geneva/lake-geneva-temperature-littoral.xlsx", sheet = "2018")
+temp.4 <- read_excel("data/lake-geneva/lake-geneva-temperature-littoral.xlsx", sheet = "2019")
 
-temp.all <- bind_rows(temp.1, temp.2, temp.3) %>% 
-  filter(depth.m == 4) %>% 
-  mutate(yday = yday(date),
-         date2 = as.Date(ifelse(yday > 250, paste0("2019-", month, "-", day), paste0("2020-", month, "-", day)), format = "%Y-%m-%d"))
-rm(temp.1, temp.2, temp.3)
+temp.all <- bind_rows(temp.1, temp.2, temp.3, temp.4) %>% 
+  mutate(yday = yday(date))
+rm(temp.1, temp.2, temp.3, temp.4)
 
 ## Calculate a 5-day center moving average to smooth temperature curve
 ## Smoothing prevents issues below trying to find the start and stop from large daily temp deviations
 temp.all.ma <- temp.all %>% group_by(year) %>% 
-  mutate(temp.ma_c = frollmean(temp.c, n = 5, align = "center")) %>% 
+  mutate(temp.ma_c = frollmean(temp_c, n = 5, align = "center")) %>% 
   filter(!is.na(temp.ma_c))
 
 ## 
-ggplot(temp.all, aes(x = date2, y = temp_c)) + 
+ggplot(temp.all.ma, aes(x = date, y = temp.ma_c)) + 
   geom_line() + theme_few() + 
   ylab('Water Temperature (°C)') + 
-  scale_x_date(date_breaks = "1 month", date_labels =  "%b %d") + 
+  scale_x_datetime(date_breaks = "1 month", date_labels =  "%b %d") + 
   theme(axis.text.x = element_text(angle = 90, hjust = 1))  + 
-  facet_wrap(~year)
+  facet_wrap(~year, scales = "free_x")
+
+
+#### CALCULATE MEAN SPAWNING DATE ----------------------------------------------------------------
 
 model.locations <- read_excel("data/model-population-parameters.xlsx", sheet = "bio-parameters") %>% 
-  filter(population == "geneva")
+  filter(lake == "Lake Geneva")
 
 
 #### CALCULATE MEAN SPAWNING DATE ----------------------------------------------------------------
@@ -91,20 +93,17 @@ mu.hatch <- read_excel("data/lake-geneva/lake-geneva-hatching.xlsx", sheet = "la
 
 ## Filter temp profiles by start and end dates, calculate daily degree-days
 
-if(mu.spawn > 0 & mu.spawn < 30) {
-  temp.inc <- temp.all %>% group_by(year) %>% filter(yday >= mu.spawn, yday < 240)
-} else {
-  temp.spawn <- temp.all %>% group_by(year) %>% filter(yday >= mu.spawn)
-  temp.hatch <- temp.all %>% group_by(year) %>% filter(yday <= mu.hatch)
-  temp.inc <- bind_rows(temp.spawn, temp.hatch) 
-}
+temp.inc <- temp.all.ma %>% left_join(mu.spawn) %>%
+  group_by(year) %>% 
+  filter(date >= mu.spawn.date, yday <= mu.hatch) %>% 
+  select(-mu.spawn.date, -mu.spawn.yday)
+
 
 ## Find ADD at hatch
-#temp.ADD <- temp.inc %>% group_by(year) %>% 
-#  mutate(ADD = cumsum(temp.c)) %>% 
-#  filter(ADD == max(ADD)) %>% 
-#  select(date, year, temp.c, ADD)
-
+temp.ADD <- temp.inc %>% group_by(year) %>% 
+  mutate(ADD = cumsum(temp.ma_c)) %>% 
+  filter(ADD == max(ADD)) %>% 
+  select(date, year, temp.ma_c, ADD)
 
 
 #### EUROPEAN WHITEFISH MODELS -------------------------------------------------------------------
@@ -114,62 +113,71 @@ if(mu.spawn > 0 & mu.spawn < 30) {
 ## Antilog: 10^(log(y))
 
 ## Eckmann 1987 (uses natural log)
-model.EC <- read_excel("data/model-structural-parameters.xlsx", sheet = "coefs") %>% 
+model.EC <- read_excel("data/model-structural-parameters.xlsx", sheet = "coefficients") %>% 
   filter(lake == "Lake Constance", morph == "littoral", source == "Eckmann (1987)")
 
 ## Take antilog from daily semilog output, accumulate across days
-model.EC.perc <- temp.all %>%
+model.EC.perc <- temp.all.ma %>% left_join(mu.spawn) %>% 
   group_by(year) %>% 
-  filter(date >= as.Date(mu.spawn, origin = paste0(year, "-01-01"))) %>% 
-  mutate(perc.day = (10^(model.EC$a + model.EC$b * temp.c + model.EC$c * temp.c^2))*100,
-         perc.cum = cumsum(perc.day),) %>% 
+  filter(date >= mu.spawn.date) %>% 
+  mutate(perc.day = (10^(model.EC$a + model.EC$b * temp.ma_c + model.EC$c * temp.ma_c^2))*100,
+         perc.cum = cumsum(perc.day)) %>% 
   filter(perc.cum <= 100) %>%
-  mutate(ADD = cumsum(temp.c))
+  mutate(ADD = cumsum(temp.ma_c))
 
 model.EC.perc.max <- model.EC.perc %>% group_by(year) %>% 
   filter(perc.cum == max(perc.cum)) %>% 
-  select(date, year, temp.c, ADD) %>% 
+  select(date, year, temp.ma_c, ADD) %>% 
   mutate(model = "EC")
 
 
 ## Stewart et al. 2021
-model.geneva <- read_excel("data/model-structural-parameters.xlsx", sheet = "coefs") %>% 
+model.geneva <- read_excel("data/model-structural-parameters.xlsx", sheet = "coefficients") %>% 
   filter(lake == "Lake Geneva")
 
 ## Take antilog from daily semilog output, accumulate across days
-model.geneva.perc <- temp.all %>%
+model.geneva.perc <- temp.all.ma %>%left_join(mu.spawn) %>% 
   group_by(year) %>% 
-  filter(date >= as.Date(mu.spawn, origin = paste0(year, "-01-01"))) %>% 
-  mutate(perc.day = (10^(model.geneva$a + model.geneva$b * temp.c))*100,
+  filter(date >= mu.spawn.date) %>% 
+  mutate(perc.day = (10^(model.geneva$a + model.geneva$b * temp.ma_c))*100,
          perc.cum = cumsum(perc.day),) %>% 
   filter(perc.cum <= 100) %>%
-  mutate(ADD = cumsum(temp.c))
+  mutate(ADD = cumsum(temp.ma_c))
 
 model.geneva.perc.max <- model.geneva.perc %>% group_by(year) %>% 
   filter(perc.cum == max(perc.cum)) %>% 
-  select(date, year, temp.c, ADD) %>% 
-  mutate(model = "TLB")
+  select(date, year, temp.ma_c, ADD) %>% 
+  mutate(model = "GV")
 
 
 #### COMBINE ALL MODEL HATCHING ESTIMATES --------------------------------------------------------
 
-model.hatching.all <- bind_rows(model.EC.perc.max, model.geneva.perc.max) %>% 
-  mutate(model = factor(model, ordered = TRUE, levels = c("TLB", "EC")),
+model.hatching.all <- temp.ADD %>% 
+  mutate(model = "EP") %>% 
+  bind_rows(., model.EC.perc.max, model.geneva.perc.max) %>% 
+  mutate(model = factor(model, ordered = TRUE, levels = c("EP", "GV", "EC")),
          yday = yday(date))
+
+model.hatching.all.comp <- model.hatching.all %>% 
+  group_by(model) %>% 
+  summarize(mean.yday = mean(yday)) %>% 
+  select(model, mean.yday) %>% 
+  pivot_wider(names_from = model, values_from = mean.yday) %>% 
+  mutate(diff = EP-GV)
 
 
 #### VISUALIZATIONS ------------------------------------------------------------------------------
 
-ggplot(temp.all, aes(x = date, y = temp.c)) + 
+ggplot(temp.all.ma, aes(x = date, y = temp.ma_c)) + 
   geom_line(size = 0.8) +
-  geom_vline(data = data.frame(year = unique(temp.all$year), 
+  geom_vline(data = data.frame(year = unique(temp.all.ma$year), 
                                date = temp.inc %>% group_by(year) %>% slice(1) %>% pull(date)),
              aes(xintercept = date), color = "gray25", linetype = "dashed", show.legend = FALSE) +
-  geom_point(data = model.hatching.all, aes(x = as.POSIXct(date), y = temp.c, fill = model, shape = model), size = 3) +
-  scale_shape_manual("", values = c(22, 23),
-                     labels = c("Unpublished Thonon Data  ", "Eckmann, 1987")) +
-  scale_fill_manual("", values = c("cornflowerblue", "forestgreen"),
-                    labels = c("Unpublished Thonon Data  ", "Eckmann, 1987")) +
+  geom_point(data = model.hatching.all, aes(x = as.POSIXct(date), y = temp.ma_c, fill = model, shape = model), size = 3) +
+  scale_shape_manual("", values = c(21, 22, 23),
+                     labels = c("Empirical Hatching  ", "Unpublished Thonon Data  ", "Eckmann, 1987")) +
+  scale_fill_manual("", values = c("lightsalmon", "cornflowerblue", "forestgreen"),
+                    labels = c("Empirical Hatching  ", "Unpublished Thonon Data  ", "Eckmann, 1987")) +
   scale_x_datetime(date_breaks = "1 month", date_labels =  "%b %d") + 
   labs(y = "Water Temperature (°C)") + 
   theme_few() + 
@@ -188,10 +196,10 @@ ggsave("figures/lake-geneva/lake-geneva-model-comparison-temp.png", height = 5.5
 
 plot.add <- ggplot(model.hatching.all, aes(x = factor(year), y = ADD, group = model)) +
   geom_point(aes(fill = model, shape = model), size = 3) + 
-  scale_shape_manual("", values = c(22, 23),
-                     labels = c("Unpublished Thonon Data  ", "Eckmann, 1987")) +
-  scale_fill_manual("", values = c("cornflowerblue", "forestgreen"),
-                    labels = c("Unpublished Thonon Data  ", "Eckmann, 1987")) +
+  scale_shape_manual("", values = c(21, 22, 23),
+                     labels = c("Empirical Hatching  ", "Unpublished Thonon Data  ", "Eckmann, 1987")) +
+  scale_fill_manual("", values = c("lightsalmon", "cornflowerblue", "forestgreen"),
+                    labels = c("Empirical Hatching  ", "Unpublished Thonon Data  ", "Eckmann, 1987")) +
   labs(y = "Degree-days") +
   theme_few() + 
   theme(axis.text.x = element_text(angle = 45, hjust = 1),
@@ -205,10 +213,10 @@ plot.add <- ggplot(model.hatching.all, aes(x = factor(year), y = ADD, group = mo
 
 plot.date <- ggplot(model.hatching.all, aes(x = factor(year), y = yday, group = model)) +
   geom_point(aes(fill = model, shape = model), size = 3) + 
-  scale_shape_manual("", values = c(22, 23),
-                     labels = c("Unpublished Thonon Data  ", "Eckmann, 1987")) +
-  scale_fill_manual("", values = c("cornflowerblue", "forestgreen"),
-                    labels = c("Unpublished Thonon Data  ", "Eckmann, 1987")) +
+  scale_shape_manual("", values = c(21, 22, 23),
+                     labels = c("Empirical Hatching  ", "Unpublished Thonon Data  ", "Eckmann, 1987")) +
+  scale_fill_manual("", values = c("lightsalmon", "cornflowerblue", "forestgreen"),
+                    labels = c("Empirical Hatching  ", "Unpublished Thonon Data  ", "Eckmann, 1987")) +
   labs(y = "Julian Date") +
   theme_few() + 
   theme(axis.text.x = element_text(angle = 45, hjust = 1),
