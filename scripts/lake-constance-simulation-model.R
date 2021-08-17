@@ -84,8 +84,8 @@ simulation.model.hatch.LC <- do.call(rbind, lapply(unique(simulation.data$year.c
     group_by(scenario) %>% 
     mutate(temp.diff_c = lag(temp_c) - temp_c,
            temp.diff_c = ifelse(is.na(temp.diff_c) == TRUE, lead(temp.diff_c), temp.diff_c),
+           temp.diff_c = ifelse(temp.diff_c < 0, 0, temp.diff_c),
            temp.diff.prop = temp.diff_c / sum(temp.diff_c),
-           temp.diff.prop = ifelse(temp.diff.prop < 0, 0, temp.diff.prop),
            daily.spawner.abundance = round(500 * temp.diff.prop, 0),
            daily.spawner.abundance = ifelse(daily.spawner.abundance == 0, 1, daily.spawner.abundance),
            daily.eggs = daily.spawner.abundance * 100) %>% 

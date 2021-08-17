@@ -22,8 +22,7 @@ library(emmeans)
 
 hatch <- read_excel("/Users/taylor/SynologyDrive/Cisco-Climate-Change/Coregonine-Temp-Embryo-EuropeanWhitefish/data/Coregonine-Temperature-Experiment-EuropeFrance-Hatch.xlsx", sheet = "hatching") %>% 
   select(population, species_form, family, male, female, female_tl_mm, female_fm_g, male_tl_mm, male_fm_g, block, no, temperature, plate, eye, hatch, dpf, ADD, include.incubation) %>% 
-  mutate(temperature = factor(temperature),
-         group = factor(interaction(population, species_form)))
+  mutate(group = factor(interaction(population, species_form)))
 
 
 #### CALCULATE LINEAR REGRESSION BETWEEN EACH TEMP FOR ALL STUDY GROUPS --------------------------
