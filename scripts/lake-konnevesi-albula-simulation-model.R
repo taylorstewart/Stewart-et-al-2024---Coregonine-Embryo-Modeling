@@ -191,7 +191,7 @@ simulation.anomaly.LK <- simulation.model.hatch.LK %>%
 trait.list <- c("mean.spawn.yday.anomaly", "mean.hatch.yday.anomaly", "mean.dpf.anomaly")
 
 simulation.anomaly.slope.LK <- do.call(rbind, lapply(trait.list, function(i) {
-  tmp.rcp <- simulation.anomaly.LK %>%  select(year.class, scenario, all_of(i)) %>% 
+  tmp.rcp <- simulation.anomaly.LK %>% select(year.class, scenario, all_of(i)) %>% 
     filter(scenario != "Historical") %>% 
     mutate(scenario = gsub(" ", "_", scenario)) %>% 
     pivot_wider(names_from = scenario, values_from = i)
@@ -200,6 +200,14 @@ simulation.anomaly.slope.LK <- do.call(rbind, lapply(trait.list, function(i) {
   lm.2.6 <- lm(RCP_2.6 ~ year.class, data = tmp.rcp)
   lm.6.0 <- lm(RCP_6.0 ~ year.class, data = tmp.rcp)
   lm.8.5 <- lm(RCP_8.5 ~ year.class, data = tmp.rcp)
+  
+  ## extract CI
+  ci.2.6.upper <- confint(lm.2.6)[2,2]
+  ci.2.6.lower <- confint(lm.2.6)[2,1]
+  ci.6.0.upper <- confint(lm.6.0)[2,2]
+  ci.6.0.lower <- confint(lm.6.0)[2,1]
+  ci.8.5.upper <- confint(lm.8.5)[2,2]
+  ci.8.5.lower <- confint(lm.8.5)[2,1]
   
   ## extract intercept
   intercept.2.6 <- coef(lm.2.6)[1]
@@ -219,12 +227,14 @@ simulation.anomaly.slope.LK <- do.call(rbind, lapply(trait.list, function(i) {
   ##
   slopes <- data.frame(trait = rep(str_split(i, "[.]", simplify = TRUE)[1,2], 3),
                        scenario = c("RCP 2.6", "RCP 6.0", "RCP 8.5"),
-                       intercept = round(c(intercept.2.6, intercept.6.0, intercept.8.5), 2),
-                       slope = round(c(slope.2.6, slope.6.0, slope.8.5), 2),
-                       R2 = round(c(R2.2.6, R2.6.0, R2.8.5), 2))
+                       intercept = round(c(intercept.2.6, intercept.6.0, intercept.8.5), 3),
+                       slope = round(c(slope.2.6, slope.6.0, slope.8.5), 3),
+                       R2 = round(c(R2.2.6, R2.6.0, R2.8.5), 3),
+                       ci.lower = round(c(ci.2.6.lower, ci.6.0.lower, ci.8.5.lower), 3),
+                       ci.upper = round(c(ci.2.6.upper, ci.6.0.upper, ci.8.5.upper), 3))
 }))
 
-write.csv(simulation.anomaly.slope.LK, "data/anomaly-slopes/lake-konnevesi-slope.csv", row.names = FALSE)
+write.csv(simulation.anomaly.slope.LK, "data/anomaly-slopes/lake-konnevesi-albula-slope.csv", row.names = FALSE)
 
 
 simulation.anomaly.comp.LK <- do.call(rbind, lapply(trait.list, function(i) {
@@ -255,7 +265,7 @@ simulation.anomaly.comp.LK <- do.call(rbind, lapply(trait.list, function(i) {
   }
 }))
 
-write.csv(simulation.anomaly.comp.LK, "data/anomaly-slopes/lake-konnevesi-multComp.csv", row.names = FALSE)
+write.csv(simulation.anomaly.comp.LK, "data/anomaly-slopes/lake-konnevesi-albula-multComp.csv", row.names = FALSE)
 
 ## Clean environment
 rm("simulation.files", "simulation.data", "simulation.data.filt", "model.locations", "model.parameters", "simulation.model.hist.mean.LK", "survival.reg")

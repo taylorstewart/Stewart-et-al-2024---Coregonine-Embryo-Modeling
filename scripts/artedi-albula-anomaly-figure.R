@@ -21,9 +21,9 @@ source("scripts/lake-konnevesi-simulation-model.R")
 
 #### PASTE REGRESSION COEFFICIENTS TOGETHER TO MAKE EQUATIONS ------------------------------------
 
-ls.eq <- simulation.anomaly.slope.LS.APIS %>% mutate(eq = paste0("y = ", slope, "x ", ifelse(intercept >= 0, "+ ", "- "), abs(intercept)))
-lo.eq <- simulation.anomaly.slope.LO %>% mutate(eq = paste0("y = ", slope, "x ", ifelse(intercept >= 0, "+ ", "- "), abs(intercept)))
-lk.eq <- simulation.anomaly.slope.LK %>% mutate(eq = paste0("y = ", slope, "x ", ifelse(intercept >= 0, "+ ", "- "), abs(intercept)))
+ls.eq <- simulation.anomaly.slope.LS.APIS %>% mutate(eq = paste0("y = ", round(slope, 2), "x ", round(ifelse(intercept >= 0, "+ ", "- "), abs(intercept)), 2))
+lo.eq <- simulation.anomaly.slope.LO %>% mutate(eq = paste0("y = ", round(slope, 2), "x ", round(ifelse(intercept >= 0, "+ ", "- "), abs(intercept)), 2))
+lk.eq <- simulation.anomaly.slope.LK %>% mutate(eq = paste0("y = ", round(slope, 2), "x ", round(ifelse(intercept >= 0, "+ ", "- "), abs(intercept)), 2))
 
 
 #### VISUALIZATION - LAKE SUPERIOR (APIS) --------------------------------------------------------

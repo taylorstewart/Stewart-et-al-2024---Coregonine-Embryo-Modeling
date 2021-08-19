@@ -20,8 +20,8 @@ source("scripts/lake-annecy-simulation-model.R")
 
 #### PASTE REGRESSION COEFFICIENTS TOGETHER TO MAKE EQUATIONS ------------------------------------
 
-lc.eq <- simulation.anomaly.slope.LC %>% mutate(eq = paste0("y = ", slope, "x ", ifelse(intercept >= 0, "+ ", "- "), abs(intercept)))
-la.eq <- simulation.anomaly.slope.LA %>% mutate(eq = paste0("y = ", slope, "x ", ifelse(intercept >= 0, "+ ", "- "), abs(intercept)))
+lc.eq <- simulation.anomaly.slope.LC %>% mutate(eq = paste0("y = ", round(slope, 2), "x ", round(ifelse(intercept >= 0, "+ ", "- "), abs(intercept)), 2))
+la.eq <- simulation.anomaly.slope.LA %>% mutate(eq = paste0("y = ", round(slope, 2), "x ", round(ifelse(intercept >= 0, "+ ", "- "), abs(intercept)), 2))
 
 
 #### VISUALIZATION - LAKE CONSTANCE --------------------------------------------------------------

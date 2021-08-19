@@ -18,20 +18,20 @@ library(lubridateExtras)
 
 #### LOAD TEMPERATURE DATA -----------------------------------------------------------------------
 
-temp.1 <- read_excel("data/lake-konnevesi/lake-konnevesi-temperature.xlsx", sheet = "2019") %>% filter(depth_m == 4.5, !is.na(temp_c))
-temp.2 <- read_excel("data/lake-konnevesi/lake-konnevesi-temperature.xlsx", sheet = "2020") %>% filter(depth_m == 4.5, !is.na(temp_c))
-temp.3 <- read_excel("data/lake-konnevesi/lake-konnevesi-temperature.xlsx", sheet = "2021") %>% filter(depth_m == 4.5, !is.na(temp_c))
+temp.1 <- read_excel("data/lake-konnevesi-albula/lake-konnevesi-temperature.xlsx", sheet = "2019") %>% filter(depth_m == 4.5, !is.na(temp_c))
+temp.2 <- read_excel("data/lake-konnevesi-albula/lake-konnevesi-temperature.xlsx", sheet = "2020") %>% filter(depth_m == 4.5, !is.na(temp_c))
+temp.3 <- read_excel("data/lake-konnevesi-albula/lake-konnevesi-temperature.xlsx", sheet = "2021") %>% filter(depth_m == 4.5, !is.na(temp_c))
 
 temp.all <- bind_rows(temp.1, temp.2, temp.3) %>% 
   mutate(yday = yday(date))
 rm(temp.1, temp.2, temp.3)
 
 
-spawn.start <- read_excel("data/lake-konnevesi/lake-konnevesi-spawning.xlsx", sheet = "lake-konnevesi-spawning") %>%
+spawn.start <- read_excel("data/lake-konnevesi-lavaretus/lake-konnevesi-spawning-lavaretus.xlsx", sheet = "lake-konnevesi-spawning") %>%
   group_by(year) %>% 
   filter(row_number() == 1) %>% 
   select(year, start.date = date)
-spawn.end <- read_excel("data/lake-konnevesi/lake-konnevesi-spawning.xlsx", sheet = "lake-konnevesi-spawning") %>%
+spawn.end <- read_excel("data/lake-konnevesi-lavaretus/lake-konnevesi-spawning-lavaretus.xlsx", sheet = "lake-konnevesi-spawning") %>%
   group_by(year) %>% 
   filter(row_number() == n()) %>% 
   select(year, end.date = date)
