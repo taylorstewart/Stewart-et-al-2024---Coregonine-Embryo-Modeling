@@ -148,15 +148,11 @@ simulation.model.hatch.LO <- do.call(rbind, lapply(unique(simulation.data.filt$y
       ## Repeat rows to equal cohort size and assign survival
       simulation.data.model.output.max.rep <- simulation.data.model.output.max %>% slice(rep(1:n(), each = daily.eggs)) %>% 
         mutate(daily.egg.rep = 1:n(),
-               surv = c(rep(1, embryo.surv), rep(0, n()-embryo.surv)))
+               surv = c(rep(1, embryo.surv), rep(0, n()-embryo.surv)),
+               inc.temp_c = simulation.temp.numeric)
     })) %>% 
-      mutate(spawn.peak.date = mean(spawn.date),
-             spawn.peak.yday = yday(spawn.peak.date),
-             spawn.peak.yday = ifelse(spawn.peak.yday < 100, spawn.peak.yday+365, spawn.peak.yday),
-             hatch.peak.date = mean(hatch.date),
-             hatch.peak.yday = yday(hatch.peak.date),
-             hatch.length_days = length(unique(hatch.yday))) %>% 
-      select(1:3, spawn.peak.date, spawn.peak.yday, 4:7, hatch.peak.date, hatch.peak.yday, 8, hatch.length_days, 9:15)
+      mutate(hatch.length_days = length(unique(hatch.yday))) %>% 
+      select(1:8, hatch.length_days, 9:16)
   }))
 }))
 
@@ -168,8 +164,9 @@ simulation.model.hist.mean.LO <- simulation.model.hatch.LO %>%
   filter(scenario == "Historical", surv == 1) %>% 
   summarize(mean.hist.spawn.yday = mean(spawn.yday),
             mean.hist.hatch.yday = mean(hatch.yday),
+            mean.hist.hatch.length = mean(hatch.length_days),
             mean.hist.dpf = mean(dpf)) %>% 
-  select(mean.hist.spawn.yday, mean.hist.hatch.yday, mean.hist.dpf)
+  select(mean.hist.spawn.yday, mean.hist.hatch.yday, mean.hist.hatch.length, mean.hist.dpf)
 
 ## calculate anomaly
 simulation.anomaly.LO <- simulation.model.hatch.LO %>%
@@ -178,17 +175,20 @@ simulation.anomaly.LO <- simulation.model.hatch.LO %>%
   distinct(spawn.date, .keep_all = TRUE) %>% 
   mutate(mean.hist.spawn.yday = simulation.model.hist.mean.LO$mean.hist.spawn.yday,
          mean.hist.hatch.yday = simulation.model.hist.mean.LO$mean.hist.hatch.yday,
+         mean.hist.hatch.length = simulation.model.hist.mean.LO$mean.hist.hatch.length,
          mean.hist.dpf = simulation.model.hist.mean.LO$mean.hist.dpf) %>% 
   mutate(spawn.yday.anomaly = spawn.yday - mean.hist.spawn.yday,
          hatch.yday.anomaly = hatch.yday - mean.hist.hatch.yday,
+         hatch.length.anomaly = hatch.length_days - mean.hist.hatch.length,
          dpf.anomaly = dpf - mean.hist.dpf) %>% 
   group_by(scenario, year.class) %>% 
   summarize(mean.spawn.yday.anomaly = mean(spawn.yday.anomaly),
             mean.hatch.yday.anomaly = mean(hatch.yday.anomaly),
+            mean.hatchdays.length.anomaly = mean(hatch.length.anomaly),
             mean.dpf.anomaly = as.numeric(mean(dpf.anomaly)))
 
 ##
-trait.list <- c("mean.spawn.yday.anomaly", "mean.hatch.yday.anomaly", "mean.dpf.anomaly")
+trait.list <- c("mean.spawn.yday.anomaly", "mean.hatch.yday.anomaly", "mean.hatchdays.length.anomaly", "mean.dpf.anomaly")
 
 simulation.anomaly.slope.LO <- do.call(rbind, lapply(trait.list, function(i) {
   tmp.rcp <- simulation.anomaly.LO %>%  select(year.class, scenario, all_of(i)) %>% 

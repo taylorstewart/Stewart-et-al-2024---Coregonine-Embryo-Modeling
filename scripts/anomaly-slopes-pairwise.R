@@ -1,6 +1,8 @@
 library(tidyverse)
 library(ggplot2)
-
+library(ggthemes)
+library(ggpubr)
+library(rstatix)
 
 ls.apis.slopes <- read.csv("data/anomaly-slopes/lake-superior-apostle-islands-slope.csv") %>% mutate(population = "Lake Superior - Cisco")
 lo.slopes <- read.csv("data/anomaly-slopes/lake-ontario-slope.csv") %>% mutate(population = "Lake Ontario - Cisco")

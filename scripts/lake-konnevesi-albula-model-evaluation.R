@@ -168,7 +168,10 @@ temp.hatch.obs <- read_excel("data/lake-konnevesi-albula/lake-konnevesi-hatching
 
 ggplot(temp.all.ma, aes(x = date, y = temp.ma_c)) + 
   geom_line(size = 0.8) +
-  geom_line(data = temp.spawn.obs, color = "lightsalmon") +
+  geom_point(data = data.frame(year = unique(temp.all.ma$year), 
+                               date = temp.inc %>% group_by(year) %>% slice(1) %>% pull(date),
+                               temp.ma_c = temp.inc %>% group_by(year) %>% slice(1) %>% pull(temp.ma_c)),
+             shape = 4, size = 2, stroke = 2, color = "lightsalmon", show.legend = FALSE) +
   geom_line(data = temp.hatch.obs, color = "lightsalmon") +
   geom_point(data = filter(model.hatching.all, model != "EP"), aes(x = as.POSIXct(date), y = temp.ma_c, fill = model, shape = model), size = 3) +
   scale_shape_manual("", values = c(22, 23),

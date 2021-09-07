@@ -55,7 +55,7 @@ simulation.model.hatch.LC <- do.call(rbind, lapply(unique(simulation.data$year.c
   spawn.end.date <- spawn.temp.data.annual %>% 
     left_join(spawn.date) %>% 
     group_by(scenario) %>% 
-    filter(date == spawn.date+7) %>% 
+    filter(date == spawn.date+9) %>% 
     arrange(date) %>% 
     slice(1) %>% 
     select(scenario, year.class, spawn.end.date = date)
@@ -140,15 +140,11 @@ simulation.model.hatch.LC <- do.call(rbind, lapply(unique(simulation.data$year.c
       ## Repeat rows to equal cohort size and assign survival
       simulation.data.model.output.max.rep <- simulation.data.model.output.max %>% slice(rep(1:n(), each = daily.eggs)) %>% 
         mutate(daily.egg.rep = 1:n(),
-               surv = c(rep(1, embryo.surv), rep(0, n()-embryo.surv)))
+               surv = c(rep(1, embryo.surv), rep(0, n()-embryo.surv)),
+               inc.temp_c = simulation.temp.numeric)
     })) %>% 
-      mutate(spawn.peak.date = mean(spawn.date),
-             spawn.peak.yday = yday(spawn.peak.date),
-             spawn.peak.yday = ifelse(spawn.peak.yday < 100, spawn.peak.yday+365, spawn.peak.yday),
-             hatch.peak.date = mean(hatch.date),
-             hatch.peak.yday = yday(hatch.peak.date),
-             hatch.length_days = length(unique(hatch.yday))) %>% 
-      select(1:3, spawn.peak.date, spawn.peak.yday, 4:7, hatch.peak.date, hatch.peak.yday, 8, hatch.length_days, 9:15)
+      mutate(hatch.length_days = length(unique(hatch.yday))) %>% 
+      select(1:8, hatch.length_days, 9:16)
   }))
 }))
 
@@ -160,8 +156,9 @@ simulation.model.hist.mean.LC <- simulation.model.hatch.LC %>%
   filter(scenario == "Historical", surv == 1) %>% 
   summarize(mean.hist.spawn.yday = mean(spawn.yday),
             mean.hist.hatch.yday = mean(hatch.yday),
+            mean.hist.hatch.length = mean(hatch.length_days),
             mean.hist.dpf = mean(dpf)) %>% 
-  select(mean.hist.spawn.yday, mean.hist.hatch.yday, mean.hist.dpf)
+  select(mean.hist.spawn.yday, mean.hist.hatch.yday, mean.hist.hatch.length, mean.hist.dpf)
 
 ## calculate anomaly
 simulation.anomaly.LC <- simulation.model.hatch.LC %>%
@@ -170,23 +167,26 @@ simulation.anomaly.LC <- simulation.model.hatch.LC %>%
   distinct(spawn.date, .keep_all = TRUE) %>% 
   mutate(mean.hist.spawn.yday = simulation.model.hist.mean.LC$mean.hist.spawn.yday,
          mean.hist.hatch.yday = simulation.model.hist.mean.LC$mean.hist.hatch.yday,
+         mean.hist.hatch.length = simulation.model.hist.mean.LC$mean.hist.hatch.length,
          mean.hist.dpf = simulation.model.hist.mean.LC$mean.hist.dpf) %>% 
   mutate(spawn.yday.anomaly = spawn.yday - mean.hist.spawn.yday,
          hatch.yday.anomaly = hatch.yday - mean.hist.hatch.yday,
+         hatch.length.anomaly = hatch.length_days - mean.hist.hatch.length,
          dpf.anomaly = dpf - mean.hist.dpf) %>% 
   group_by(scenario, year.class) %>% 
   summarize(mean.spawn.yday.anomaly = mean(spawn.yday.anomaly),
             mean.hatch.yday.anomaly = mean(hatch.yday.anomaly),
+            mean.hatchdays.length.anomaly = mean(hatch.length.anomaly),
             mean.dpf.anomaly = as.numeric(mean(dpf.anomaly)))
 
 ##
-trait.list <- c("mean.spawn.yday.anomaly", "mean.hatch.yday.anomaly", "mean.dpf.anomaly")
+trait.list <- c("mean.spawn.yday.anomaly", "mean.hatch.yday.anomaly", "mean.hatchdays.length.anomaly", "mean.dpf.anomaly")
 
 simulation.anomaly.slope.LC <- do.call(rbind, lapply(trait.list, function(i) {
   tmp.rcp <- simulation.anomaly.LC %>%  select(year.class, scenario, all_of(i)) %>% 
     filter(scenario != "Historical") %>% 
     mutate(scenario = gsub(" ", "_", scenario)) %>% 
-    pivot_wider(names_from = scenario, values_from = i)
+    pivot_wider(names_from = scenario, values_from = all_of(i))
   
   ## Fit linear regressions
   lm.2.6 <- lm(RCP_2.6 ~ year.class, data = tmp.rcp)
@@ -232,12 +232,13 @@ write.csv(simulation.anomaly.slope.LC, "data/anomaly-slopes/lake-constance-slope
 simulation.anomaly.comp.LC <- do.call(rbind, lapply(trait.list, function(i) {
   tmp.rcp.factor <- simulation.anomaly.LC %>%  select(year.class, scenario, i) %>% 
     filter(scenario != "Historical") %>% 
-    mutate(scenario = factor(scenario))
+    mutate(year.class = factor(year.class),
+           scenario = factor(scenario))
   
   ## Fit multiple regression for pairwise comparison
   lm.factor <- lm(formula(paste(i, " ~ year.class + scenario")), data = tmp.rcp.factor)
   p.value <- anova(lm.factor)[2,5]
-
+  
   trait.comp <- data.frame(contrast = "overall",
                            estimate = NA,
                            SE = NA,
@@ -246,12 +247,16 @@ simulation.anomaly.comp.LC <- do.call(rbind, lapply(trait.list, function(i) {
                            p.value = p.value,
                            trait = rep(str_split(i, "[.]", simplify = TRUE)[1,2]))
   
-  if(p.value < 0.05) {
+  if(is.na(p.value) == FALSE) {
+    if(p.value < 0.05) {
     ## Calculate estimated marginal means and pairwise comparisons
     trait.comp.all <- data.frame(pairs(emmeans(lm.factor, ~ scenario), simple = "scenario", adjust = "tukey")) %>% 
       mutate(trait = str_split(i, "[.]", simplify = TRUE)[1,2]) %>% 
       bind_rows(trait.comp)
   } else {
+    trait.comp
+  }
+    } else {
     trait.comp
   }
 }))
