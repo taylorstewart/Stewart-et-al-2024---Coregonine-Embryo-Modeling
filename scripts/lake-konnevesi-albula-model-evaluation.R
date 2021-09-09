@@ -139,9 +139,9 @@ model.hatching.all <- temp.ADD %>%
 
 model.hatching.all.comp <- model.hatching.all %>% 
   group_by(model) %>% 
-  summarize(mean.yday = mean(yday)) %>% 
-  select(model, mean.yday) %>% 
-  pivot_wider(names_from = model, values_from = mean.yday) %>% 
+  summarize(mean.ADD = mean(ADD)) %>% 
+  select(model, mean.ADD) %>% 
+  pivot_wider(names_from = model, values_from = mean.ADD) %>% 
   mutate(diff = EP-ST)
 
 

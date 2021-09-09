@@ -17,16 +17,16 @@ library(cowplot)
 
 #### LOAD TEMPERATURE DATA -----------------------------------------------------------------------
 
-temp.1 <- read_excel("data/lake-ontario/lake-ontario-temperature-oswego-river.xlsx", sheet = "2012")
-temp.2 <- read_excel("data/lake-ontario/lake-ontario-temperature-oswego-river.xlsx", sheet = "2013")
-temp.3 <- read_excel("data/lake-ontario/lake-ontario-temperature-oswego-river.xlsx", sheet = "2014")
-temp.4 <- read_excel("data/lake-ontario/lake-ontario-temperature-oswego-river.xlsx", sheet = "2015")
-temp.5 <- read_excel("data/lake-ontario/lake-ontario-temperature-oswego-river.xlsx", sheet = "2016")
-temp.6 <- read_excel("data/lake-ontario/lake-ontario-temperature-oswego-river.xlsx", sheet = "2017")
-temp.7 <- read_excel("data/lake-ontario/lake-ontario-temperature-oswego-river.xlsx", sheet = "2018")
-temp.8 <- read_excel("data/lake-ontario/lake-ontario-temperature-oswego-river.xlsx", sheet = "2019")
-temp.9 <- read_excel("data/lake-ontario/lake-ontario-temperature-oswego-river.xlsx", sheet = "2020")
-temp.10 <- read_excel("data/lake-ontario/lake-ontario-temperature-oswego-river.xlsx", sheet = "2021")
+temp.1 <- read_excel("data/lake-ontario/lake-ontario-temperature.xlsx", sheet = "2012")
+temp.2 <- read_excel("data/lake-ontario/lake-ontario-temperature.xlsx", sheet = "2013")
+temp.3 <- read_excel("data/lake-ontario/lake-ontario-temperature.xlsx", sheet = "2014")
+temp.4 <- read_excel("data/lake-ontario/lake-ontario-temperature.xlsx", sheet = "2015")
+temp.5 <- read_excel("data/lake-ontario/lake-ontario-temperature.xlsx", sheet = "2016")
+temp.6 <- read_excel("data/lake-ontario/lake-ontario-temperature.xlsx", sheet = "2017")
+temp.7 <- read_excel("data/lake-ontario/lake-ontario-temperature.xlsx", sheet = "2018")
+temp.8 <- read_excel("data/lake-ontario/lake-ontario-temperature.xlsx", sheet = "2019")
+temp.9 <- read_excel("data/lake-ontario/lake-ontario-temperature.xlsx", sheet = "2020")
+temp.10 <- read_excel("data/lake-ontario/lake-ontario-temperature.xlsx", sheet = "2020")
 
 temp.all <- bind_rows(temp.1, temp.2, temp.3, temp.4, temp.5, temp.6, temp.7, temp.8, temp.9, temp.10) %>% 
   mutate(yday = yday(date))
@@ -85,7 +85,7 @@ spawn.period.temp <- temp.all.ma %>%
 mu.spawn <- spawn.period.temp %>% 
   group_by(year) %>% 
   summarize(mu.spawn.date = mean(date)) %>% 
-  mutate(mu.spawn.yday = yday(mu.spawn.date))  
+  mutate(mu.spawn.yday = yday(mu.spawn.date))
 
 
 #### CALCULATE MEAN HATCHING DATE ----------------------------------------------------------------
@@ -99,12 +99,11 @@ mu.hatch <- read_excel("data/lake-ontario/lake-ontario-hatching.xlsx", sheet = "
 
 ## Filter temp profiles by start and end dates
 
-temp.spawn <- temp.all.ma %>% left_join(mu.spawn) %>%
+temp.inc <- temp.all.ma %>% left_join(mu.spawn) %>%
   group_by(year) %>% 
-  filter(yday >= mu.spawn.yday) %>% 
-  select(-mu.spawn.yday, -mu.spawn.date)
-temp.hatch <- temp.all.ma %>% group_by(year) %>% filter(yday <= mu.hatch)
-temp.inc <- bind_rows(temp.spawn, temp.hatch) 
+  filter(date >= mu.spawn.date, yday <= mu.hatch) %>% 
+  select(-mu.spawn.yday, -mu.spawn.date) %>% 
+  arrange(date)
 
 temp.ADD <- temp.inc %>% group_by(year) %>% 
   mutate(ADD = cumsum(temp.ma_c)) %>% 
@@ -165,11 +164,12 @@ model.hatching.all <- temp.ADD %>%
 
 model.hatching.all.comp <- model.hatching.all %>% 
   group_by(model) %>% 
-  summarize(mean.yday = mean(jday),
-            n = n()) %>% 
-  select(model, n, mean.yday) %>% 
-  pivot_wider(names_from = model, values_from = mean.yday) %>% 
-  mutate(diff = EP-ST)
+  summarize(mean.ADD = mean(ADD)) %>% 
+  select(model, mean.ADD) %>% 
+  pivot_wider(names_from = model, values_from = mean.ADD) %>% 
+  mutate(diff.ST = EP-ST,
+         diff.CB = EP-CB)
+
 
 #### VISUALIZATIONS ------------------------------------------------------------------------------xs
 

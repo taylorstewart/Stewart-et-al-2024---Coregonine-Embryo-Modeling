@@ -42,7 +42,7 @@ ggplot(temp.all.ma, aes(x = date, y = temp.ma_c)) +
 
 
 model.locations <- read_excel("data/model-population-parameters.xlsx", sheet = "bio-parameters") %>% 
-  filter(population == "apostle islands")
+  filter(population == "Apostle Islands")
 
 
 #### CALCULATE MEAN SPAWNING DATE ----------------------------------------------------------------
@@ -158,10 +158,11 @@ model.hatching.all <- temp.ADD %>%
 
 model.hatching.all.comp <- model.hatching.all %>% 
   group_by(model) %>% 
-  summarize(mean.yday = mean(jday)) %>% 
-  select(model, mean.yday) %>% 
-  pivot_wider(names_from = model, values_from = mean.yday) %>% 
-  mutate(diff = EP-ST)
+  summarize(mean.ADD = mean(ADD)) %>% 
+  select(model, mean.ADD) %>% 
+  pivot_wider(names_from = model, values_from = mean.ADD) %>% 
+  mutate(diff.ST = EP-ST,
+         diff.CB = EP-CB)
 
 
 #### VISUALIZATIONS ------------------------------------------------------------------------------

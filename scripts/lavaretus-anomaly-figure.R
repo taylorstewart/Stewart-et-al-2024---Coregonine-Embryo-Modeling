@@ -20,8 +20,10 @@ source("scripts/lake-annecy-simulation-model.R")
 
 #### PASTE REGRESSION COEFFICIENTS TOGETHER TO MAKE EQUATIONS ------------------------------------
 
-lc.eq <- simulation.anomaly.slope.LC %>% mutate(eq = paste0("y = ", round(slope, 2), "x ", ifelse(intercept >= 0, "+ ", "- "), round(abs(intercept), 2)))
-la.eq <- simulation.anomaly.slope.LA %>% mutate(eq = paste0("y = ", round(slope, 2), "x ", ifelse(intercept >= 0, "+ ", "- "), round(abs(intercept), 2)))
+lc.eq <- simulation.anomaly.slope.LC %>% mutate(eq = paste0("y = ", sprintf("%.2f", slope), "x ", ifelse(intercept >= 0, "+ ", "- "), sprintf("%.2f", abs(intercept))),
+                                                R2 = sprintf("%.2f", R2))
+la.eq <- simulation.anomaly.slope.LA %>% mutate(eq = paste0("y = ", sprintf("%.2f", slope), "x ", ifelse(intercept >= 0, "+ ", "- "), sprintf("%.2f", abs(intercept))),
+                                                R2 = sprintf("%.2f", R2))
 
 
 #### CALCULATE TEMP SLOPE PER DECADE -------------------------------------------------------------
@@ -68,7 +70,7 @@ simulation.inc.temp.slope <- do.call(rbind, lapply(unique(simulation.inc.temp$gr
 
 plot.spawn.anomaly.LC <- ggplot(simulation.anomaly.LC, aes(x = year.class, y = mean.spawn.yday.anomaly, group = scenario)) +
   geom_hline(yintercept = 0, color = "gray70") +
-  geom_line(aes(color = scenario, linetype = scenario), size = 1, alpha = 0.5) + 
+  geom_line(aes(color = scenario), size = 1, alpha = 0.5) + 
   geom_smooth(data = filter(simulation.anomaly.LC, scenario != "Historical"), 
               aes(color = scenario), size = 1, method = "lm", se = FALSE, show.legend = FALSE) +
   geom_richtext(data = filter(lc.eq, trait == "spawn", scenario == "RCP 2.6"), 
@@ -83,7 +85,6 @@ plot.spawn.anomaly.LC <- ggplot(simulation.anomaly.LC, aes(x = year.class, y = m
   scale_y_continuous(limits = c(-15, 65), breaks = seq(-10, 60, 10), expand = c(0, 0)) +
   scale_x_continuous(limits = c(1900, 2100), breaks = seq(1900, 2100, 25), expand = c(0, 0.2)) +
   scale_color_manual(values = c("gray50","#2c7bb6", "#fdae61",  "#d7191c")) +
-  scale_linetype_manual(values = c("solid", "longdash", "twodash", "solid")) +
   labs(y = "Spawning Date\nAnomaly (Days)") +
   guides(color = guide_legend(override.aes = list(alpha = 1)))+
   theme_few() + 
@@ -103,21 +104,20 @@ plot.spawn.anomaly.LC <- ggplot(simulation.anomaly.LC, aes(x = year.class, y = m
 
 plot.dpf.anomaly.LC <- ggplot(simulation.anomaly.LC, aes(x = year.class, y = mean.dpf.anomaly, group = scenario)) +
   geom_hline(yintercept = 0, color = "gray70") +
-  geom_line(aes(color = scenario, linetype = scenario), size = 1, alpha = 0.5) + 
+  geom_line(aes(color = scenario), size = 1, alpha = 0.5) + 
   geom_smooth(data = filter(simulation.anomaly.LC, scenario != "Historical"), aes(color = scenario), size = 1, method = "lm", se = FALSE, show.legend = FALSE) +
   geom_richtext(data = filter(lc.eq, trait == "dpf", scenario == "RCP 2.6"), 
                 aes(label = paste0("<span style='color:#2c7bb6'>", eq, "; R<sup>2</sup> = ", R2, "</span><br>")),
-                x = 1905, y = -13.4, size = 5.5, hjust = 0, vjust = 1, fill = NA, label.color = NA) +
+                x = 1905, y = -12.4, size = 5.5, hjust = 0, vjust = 1, fill = NA, label.color = NA) +
   geom_richtext(data = filter(lc.eq, trait == "dpf", scenario == "RCP 6.0"), 
                 aes(label = paste0("<span style='color:#fdae61'>", eq, "; R<sup>2</sup> = ", R2, "</span><br>")),
-                x = 1905, y = -17.1, size = 5.5, hjust = 0, vjust = 1, fill = NA, label.color = NA) +
+                x = 1905, y = -16.1, size = 5.5, hjust = 0, vjust = 1, fill = NA, label.color = NA) +
   geom_richtext(data = filter(lc.eq, trait == "dpf", scenario == "RCP 8.5"), 
                 aes(label = paste0("<span style='color:#d7191c'>", eq, "; R<sup>2</sup> = ", R2, "</span><br>")),
-                x = 1905, y = -20.8, size = 5.5, hjust = 0, vjust = 1, fill = NA, label.color = NA) +
+                x = 1905, y = -19.8, size = 5.5, hjust = 0, vjust = 1, fill = NA, label.color = NA) +
   scale_y_continuous(limits = c(-26, 11), breaks = seq(-25, 10, 5), expand = c(0, 0)) +
   scale_x_continuous(limits = c(1900, 2100), breaks = seq(1900, 2100, 25), expand = c(0, 0.2)) +
   scale_color_manual(values = c("gray50","#2c7bb6", "#fdae61",  "#d7191c")) +
-  scale_linetype_manual(values = c("solid", "longdash", "twodash", "solid")) +
   labs(y = "Incubation Length\nAnomaly (Days)") +
   theme_few() + 
   theme(axis.title.x = element_blank(),
@@ -131,7 +131,7 @@ plot.dpf.anomaly.LC <- ggplot(simulation.anomaly.LC, aes(x = year.class, y = mea
 
 plot.hatch.anomaly.LC <- ggplot(simulation.anomaly.LC, aes(x = year.class, y = mean.hatch.yday.anomaly, group = scenario)) +
   geom_hline(yintercept = 0, color = "gray70") +
-  geom_line(aes(color = scenario, linetype = scenario), size = 1, alpha = 0.5) + 
+  geom_line(aes(color = scenario), size = 1, alpha = 0.5) + 
   geom_smooth(data = filter(simulation.anomaly.LC, scenario != "Historical"), aes(color = scenario), size = 1, method = "lm", se = FALSE, show.legend = FALSE) +
   geom_richtext(data = filter(lc.eq, trait == "hatch", scenario == "RCP 2.6"), 
                 aes(label = paste0("<span style='color:#2c7bb6'>", eq, "; R<sup>2</sup> = ", R2, "</span><br>")),
@@ -145,7 +145,6 @@ plot.hatch.anomaly.LC <- ggplot(simulation.anomaly.LC, aes(x = year.class, y = m
   scale_y_continuous(limits = c(-20, 42), breaks = seq(-20, 40, 10), expand = c(0, 0)) +
   scale_x_continuous(limits = c(1900, 2100), breaks = seq(1900, 2100, 25), expand = c(0, 0.2)) +
   scale_color_manual(values = c("gray50","#2c7bb6", "#fdae61",  "#d7191c")) +
-  scale_linetype_manual(values = c("solid", "longdash", "twodash", "solid")) +
   labs(y = "Hatching Date\nAnomaly (Days)") +
   theme_few() + 
   theme(axis.title.x = element_blank(),
@@ -162,7 +161,7 @@ plot.hatch.anomaly.LC <- ggplot(simulation.anomaly.LC, aes(x = year.class, y = m
 
 plot.spawn.anomaly.LA <- ggplot(simulation.anomaly.LA, aes(x = year.class, y = mean.spawn.yday.anomaly, group = scenario)) +
   geom_hline(yintercept = 0, color = "gray70") +
-  geom_line(aes(color = scenario, linetype = scenario), size = 1, alpha = 0.5) + 
+  geom_line(aes(color = scenario), size = 1, alpha = 0.5) + 
   geom_smooth(data = filter(simulation.anomaly.LA, scenario != "Historical"), 
               aes(color = scenario), size = 1, method = "lm", se = FALSE, show.legend = FALSE) +
   geom_richtext(data = filter(la.eq, trait == "spawn", scenario == "RCP 2.6"), 
@@ -177,7 +176,6 @@ plot.spawn.anomaly.LA <- ggplot(simulation.anomaly.LA, aes(x = year.class, y = m
   scale_y_continuous(limits = c(-15, 65), breaks = seq(-10, 60, 10), expand = c(0, 0)) +
   scale_x_continuous(limits = c(1900, 2100), breaks = seq(1900, 2100, 25), expand = c(0, 0.2)) +
   scale_color_manual(values = c("gray50","#2c7bb6", "#fdae61",  "#d7191c")) +
-  scale_linetype_manual(values = c("solid", "longdash", "twodash", "solid")) +
   labs(y = "Spawning Date\nAnomaly (Days)") +
   theme_few() + 
   theme(axis.title = element_blank(),
@@ -193,22 +191,21 @@ plot.spawn.anomaly.LA <- ggplot(simulation.anomaly.LA, aes(x = year.class, y = m
 
 plot.dpf.anomaly.LA <- ggplot(simulation.anomaly.LA, aes(x = year.class, y = mean.dpf.anomaly, group = scenario)) +
   geom_hline(yintercept = 0, color = "gray70") +
-  geom_line(aes(color = scenario, linetype = scenario), size = 1, alpha = 0.5) + 
+  geom_line(aes(color = scenario), size = 1, alpha = 0.5) + 
   geom_smooth(data = filter(simulation.anomaly.LA, scenario != "Historical"), 
               aes(color = scenario), size = 1, method = "lm", se = FALSE, show.legend = FALSE) +
   geom_richtext(data = filter(la.eq, trait == "dpf", scenario == "RCP 2.6"), 
                 aes(label = paste0("<span style='color:#2c7bb6'>", eq, "; R<sup>2</sup> = ", R2, "</span><br>")),
-                x = 1905, y = -13.4, size = 5.5, hjust = 0, vjust = 1, fill = NA, label.color = NA) +
+                x = 1905, y = -12.4, size = 5.5, hjust = 0, vjust = 1, fill = NA, label.color = NA) +
   geom_richtext(data = filter(la.eq, trait == "dpf", scenario == "RCP 6.0"), 
                 aes(label = paste0("<span style='color:#fdae61'>", eq, "; R<sup>2</sup> = ", R2, "</span><br>")),
-                x = 1905, y = -17.1, size = 5.5, hjust = 0, vjust = 1, fill = NA, label.color = NA) +
+                x = 1905, y = -16.1, size = 5.5, hjust = 0, vjust = 1, fill = NA, label.color = NA) +
   geom_richtext(data = filter(la.eq, trait == "dpf", scenario == "RCP 8.5"), 
                 aes(label = paste0("<span style='color:#d7191c'>", eq, "; R<sup>2</sup> = ", R2, "</span><br>")),
-                x = 1905, y = -20.8, size = 5.5, hjust = 0, vjust = 1, fill = NA, label.color = NA) +
+                x = 1905, y = -19.8, size = 5.5, hjust = 0, vjust = 1, fill = NA, label.color = NA) +
   scale_y_continuous(limits = c(-26, 11), breaks = seq(-25, 10, 5), expand = c(0, 0)) +
   scale_x_continuous(limits = c(1900, 2100), breaks = seq(1900, 2100, 25), expand = c(0, 0.2)) +
   scale_color_manual(values = c("gray50","#2c7bb6", "#fdae61",  "#d7191c")) +
-  scale_linetype_manual(values = c("solid", "longdash", "twodash", "solid")) +
   labs(y = "Incubation Length\nAnomaly (Days)") +
   theme_few() + 
   theme(axis.title = element_blank(),
@@ -221,7 +218,7 @@ plot.dpf.anomaly.LA <- ggplot(simulation.anomaly.LA, aes(x = year.class, y = mea
 
 plot.hatch.anomaly.LA <- ggplot(simulation.anomaly.LA, aes(x = year.class, y = mean.hatch.yday.anomaly, group = scenario)) +
   geom_hline(yintercept = 0, color = "gray70") +
-  geom_line(aes(color = scenario, linetype = scenario), size = 1, alpha = 0.5) + 
+  geom_line(aes(color = scenario), size = 1, alpha = 0.5) + 
   geom_smooth(data = filter(simulation.anomaly.LA, scenario != "Historical"), 
               aes(color = scenario), size = 1, method = "lm", se = FALSE, show.legend = FALSE) +
   geom_richtext(data = filter(la.eq, trait == "hatch", scenario == "RCP 2.6"), 
@@ -236,7 +233,6 @@ plot.hatch.anomaly.LA <- ggplot(simulation.anomaly.LA, aes(x = year.class, y = m
   scale_y_continuous(limits = c(-20, 42), breaks = seq(-20, 40, 10), expand = c(0, 0)) +
   scale_x_continuous(limits = c(1900, 2100), breaks = seq(1900, 2100, 25), expand = c(0, 0.2)) +
   scale_color_manual(values = c("gray50","#2c7bb6", "#fdae61",  "#d7191c")) +
-  scale_linetype_manual(values = c("solid", "longdash", "twodash", "solid")) +
   labs(y = "Hatching Date\nAnomaly (Days)") +
   theme_few() + 
   theme(axis.title = element_blank(),
@@ -353,5 +349,5 @@ plot.all <- grid.arrange(
   heights = c(0.075, 0.115, 1)
 )
 
-ggsave("figures/lavaretus-simulation-anomaly2.png", plot = plot.all, width = 13, height = 12.5, dpi = 300)
+ggsave("figures/lavaretus-simulation-anomaly.png", plot = plot.all, width = 13, height = 12.5, dpi = 300)
 
