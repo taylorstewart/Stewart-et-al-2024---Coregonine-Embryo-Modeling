@@ -43,4 +43,7 @@ vignettes/*.pdf
 data/.DS_Store
 raw-data/
 data/climate-simulations
+data/anomaly-slopes
+data/mock-temperature
+data/shapefiles
 manuscript/
