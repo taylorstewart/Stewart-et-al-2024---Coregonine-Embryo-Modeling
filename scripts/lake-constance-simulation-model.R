@@ -13,8 +13,9 @@ simulation.data <- fread("data/lake-constance/lake-constance-temperature.csv") %
   mutate(year.class = ifelse(yday > 240, year + 1, year),
          date = as.POSIXct(paste0(year, "-", month, "-", day), format = "%Y-%m-%d")) %>% 
   filter(scenario != "Historical" | year.class != 2006, year.class != 2100)
-spawn.temp.data <- fread("data/lake-constance/lake-constance-temperature-spawning.csv") %>% 
-  mutate(year.class = ifelse(yday > 240, year + 1, year)) %>% 
+spawn.temp.data <- fread("data/lake-constance/lake-constance-scenarios-spawning.csv") %>% 
+  mutate(year.class = ifelse(yday > 240, year + 1, year),
+         date = as.POSIXct(paste0(year, "-", month, "-", day), format = "%Y-%m-%d")) %>% 
   filter(scenario != "Historical" | year.class != 2006, year.class != 2100)
 
 
