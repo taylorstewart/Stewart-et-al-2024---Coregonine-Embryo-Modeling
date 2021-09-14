@@ -17,14 +17,9 @@ library(cowplot)
 
 #### LOAD TEMPERATURE DATA -----------------------------------------------------------------------
 
-temp.1 <- read_excel("data/lake-geneva/lake-geneva-temperature-littoral.xlsx", sheet = "2016")
-temp.2 <- read_excel("data/lake-geneva/lake-geneva-temperature-littoral.xlsx", sheet = "2017")
-temp.3 <- read_excel("data/lake-geneva/lake-geneva-temperature-littoral.xlsx", sheet = "2018")
-temp.4 <- read_excel("data/lake-geneva/lake-geneva-temperature-littoral.xlsx", sheet = "2019")
-
-temp.all <- bind_rows(temp.1, temp.2, temp.3, temp.4) %>% 
-  mutate(yday = yday(date))
-rm(temp.1, temp.2, temp.3, temp.4)
+temp.all <- read_excel("data/lake-geneva/lake-geneva-temperature.xlsx", sheet = "temp", skip = 28) %>% 
+  mutate(yday = yday(date)) %>% 
+  filter(year >= 2010)
 
 ## Calculate a 5-day center moving average to smooth temperature curve
 ## Smoothing prevents issues below trying to find the start and stop from large daily temp deviations
@@ -43,7 +38,7 @@ ggplot(temp.all.ma, aes(x = date, y = temp.ma_c)) +
 
 #### CALCULATE MEAN SPAWNING DATE ----------------------------------------------------------------
 
-model.locations <- read_excel("data/model-population-parameters.xlsx", sheet = "bio-parameters") %>% 
+model.locations <- read_excel("data/model-population-parameters.xlsx", sheet = "bio-parameters", skip = 34) %>% 
   filter(lake == "Lake Geneva")
 
 
@@ -84,7 +79,7 @@ mu.spawn <- spawn.period.temp %>%
 
 #### CALCULATE MEAN HATCHING DATE ----------------------------------------------------------------
 
-mu.hatch <- read_excel("data/lake-geneva/lake-geneva-hatching.xlsx", sheet = "lake-geneva-hatching") %>%
+mu.hatch <- read_excel("data/lake-geneva/lake-geneva-hatching.xlsx", sheet = "lake-geneva-hatching", skip = 27) %>%
   group_by(year) %>% 
   summarize(mu.hatch.date = as.Date(weighted.mean(date, abundance), format = "%Y-%m-%d")) %>% 
   mutate(mu.hatch.yday = yday(mu.hatch.date)) %>% 
@@ -113,7 +108,7 @@ temp.ADD <- temp.inc %>% group_by(year) %>%
 ## Antilog: 10^(log(y))
 
 ## Eckmann 1987 (uses natural log)
-model.EC <- read_excel("data/model-structural-parameters.xlsx", sheet = "coefficients") %>% 
+model.EC <- read_excel("data/model-structural-parameters.xlsx", sheet = "coefficients", skip = 32) %>% 
   filter(lake == "Lake Constance", morph == "littoral", source == "Eckmann (1987)")
 
 ## Take antilog from daily semilog output, accumulate across days
@@ -132,7 +127,7 @@ model.EC.perc.max <- model.EC.perc %>% group_by(year) %>%
 
 
 ## Stewart et al. 2021
-model.geneva <- read_excel("data/model-structural-parameters.xlsx", sheet = "coefficients") %>% 
+model.geneva <- read_excel("data/model-structural-parameters.xlsx", sheet = "coefficients", skip = 32) %>% 
   filter(lake == "Lake Geneva")
 
 ## Take antilog from daily semilog output, accumulate across days

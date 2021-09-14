@@ -17,12 +17,8 @@ library(cowplot)
 
 #### LOAD TEMPERATURE DATA -----------------------------------------------------------------------
 
-temp.1 <- read_excel("data/lake-annecy/lake-annecy-temperature.xlsx", sheet = "2005")
-temp.2 <- read_excel("data/lake-annecy/lake-annecy-temperature.xlsx", sheet = "2006")
-
-temp.all <- bind_rows(temp.1, temp.2) %>% 
+temp.all <- read_excel("data/lake-annecy/lake-annecy-temperature.xlsx", sheet = "temp", skip = 28) %>% 
   mutate(yday = yday(date))
-rm(temp.1, temp.2)
 
 ## Calculate a 5-day center moving average to smooth temperature curve
 ## Smoothing prevents issues below trying to find the start and stop from large daily temp deviations
@@ -40,7 +36,7 @@ ggplot(temp.all.ma, aes(x = date, y = temp.ma_c)) +
 
 
 
-model.locations <- read_excel("data/model-population-parameters.xlsx", sheet = "bio-parameters") %>% 
+model.locations <- read_excel("data/model-population-parameters.xlsx", sheet = "bio-parameters", skip = 34) %>% 
   filter(population == "Annecy")
 
 
@@ -85,7 +81,7 @@ mu.spawn <- spawn.period.temp %>%
 
 #### CALCULATE MEAN HATCHING DATE ----------------------------------------------------------------
 
-mu.hatch <- read_excel("data/lake-annecy/lake-annecy-hatching.xlsx", sheet = "lake-annecy-hatching") %>%
+mu.hatch <- read_excel("data/lake-annecy/lake-annecy-hatching.xlsx", sheet = "lake-annecy-hatching", skip = 27) %>%
   group_by(year) %>% 
   summarize(mu.hatch.date = as.Date(weighted.mean(date, abundance), format = "%Y-%m-%d")) %>% 
   mutate(mu.hatch.yday = yday(mu.hatch.date)) %>% 
@@ -116,7 +112,7 @@ temp.ADD <- temp.inc %>% group_by(year) %>%
 ## Antilog: 10^(log(y))
 
 ## Eckmann 1987 (uses natural log)
-model.EC <- read_excel("data/model-structural-parameters.xlsx", sheet = "coefficients") %>% 
+model.EC <- read_excel("data/model-structural-parameters.xlsx", sheet = "coefficients", skip = 32) %>% 
   filter(lake == "Lake Constance", species == "lavaretus macrophthalmus")
 
 ## Take antilog from daily semilog output, accumulate across days
@@ -135,7 +131,7 @@ model.EC.perc.max <- model.EC.perc %>% group_by(year) %>%
 
 
 ## Stewart et al. 2021
-model.annecy <- read_excel("data/model-structural-parameters.xlsx", sheet = "coefficients") %>% 
+model.annecy <- read_excel("data/model-structural-parameters.xlsx", sheet = "coefficients", skip = 32) %>% 
   filter(lake == "Lake Geneva")
 
 ## Take antilog from daily semilog output, accumulate across days

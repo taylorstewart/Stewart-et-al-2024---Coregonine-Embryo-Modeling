@@ -18,13 +18,9 @@ library(cowplot)
 
 #### LOAD TEMPERATURE DATA -----------------------------------------------------------------------
 
-temp.1 <- read_excel("data/lake-konnevesi-lavaretus/lake-konnevesi-temperature.xlsx", sheet = "2019") %>% filter(depth_m == 4.5, !is.na(temp_c))
-temp.2 <- read_excel("data/lake-konnevesi-lavaretus/lake-konnevesi-temperature.xlsx", sheet = "2020") %>% filter(depth_m == 4.5, !is.na(temp_c))
-temp.3 <- read_excel("data/lake-konnevesi-lavaretus/lake-konnevesi-temperature.xlsx", sheet = "2021") %>% filter(depth_m == 4.5, !is.na(temp_c))
-
-temp.all <- bind_rows(temp.1, temp.2, temp.3) %>% 
+temp.all <- read_excel("data/lake-konnevesi/lake-konnevesi-temperature.xlsx", sheet = "temp", skip = 28) %>%
+  filter(year >= 2019, depth_m == 4.5, !is.na(temp_c)) %>% 
   mutate(yday = yday(date))
-rm(temp.1, temp.2, temp.3)
 
 ## Calculate a 5-day center moving average to smooth temperature curve
 ## Smoothing prevents issues below trying to find the start and stop from large daily temp deviations
@@ -43,11 +39,11 @@ ggplot(temp.all.ma, aes(x = date, y = temp.ma_c)) +
 
 #### CALCULATE MEAN SPAWNING DATE ----------------------------------------------------------------
 
-spawn.start <- read_excel("data/lake-konnevesi-lavaretus/lake-konnevesi-spawning-lavaretus.xlsx", sheet = "lake-konnevesi-spawning") %>%
+spawn.start <- read_excel("data/lake-konnevesi/lake-konnevesi-spawning-lavaretus.xlsx", sheet = "lake-konnevesi-spawning", skip = 27) %>%
   group_by(year) %>% 
   filter(row_number() == 1) %>% 
   select(year, start.date = date)
-spawn.end <- read_excel("data/lake-konnevesi-lavaretus/lake-konnevesi-spawning-lavaretus.xlsx", sheet = "lake-konnevesi-spawning") %>%
+spawn.end <- read_excel("data/lake-konnevesi/lake-konnevesi-spawning-lavaretus.xlsx", sheet = "lake-konnevesi-spawning", skip = 27) %>%
   group_by(year) %>% 
   filter(row_number() == n()) %>% 
   select(year, end.date = date)
@@ -64,7 +60,7 @@ mu.spawn <- temp.all.ma %>%
 
 #### CALCULATE MEAN HATCHING DATE ----------------------------------------------------------------
 
-mu.hatch <- read_excel("data/lake-konnevesi-lavaretus/lake-konnevesi-hatching-lavaretus.xlsx", sheet = "lake-konnevesi-hatching") %>% 
+mu.hatch <- read_excel("data/lake-konnevesi/lake-konnevesi-hatching-lavaretus.xlsx", sheet = "lake-konnevesi-hatching", skip = 27) %>% 
   group_by(year) %>% 
   summarize(mu.hatch.date = as.Date(mean(date), format = "%Y-%m-%d"))
 
@@ -91,7 +87,7 @@ temp.ADD <- temp.inc %>% group_by(year) %>%
 ## Antilog: 10^(log(y))
 
 ## Eckmann, 1987
-model.EK <- read_excel("data/model-structural-parameters.xlsx", sheet = "coefficients") %>% 
+model.EK <- read_excel("data/model-structural-parameters.xlsx", sheet = "coefficients", skip = 32) %>% 
   filter(lake == "Lake Constance", species == "lavaretus macrophthalmus")
 
 ## Take antilog from daily semilog output, accumulate across days
@@ -110,7 +106,7 @@ model.EK.perc.max <- model.EK.perc %>% group_by(year) %>%
 
 
 ## Stewart et al. 2021
-model.konnevesi <- read_excel("data/model-structural-parameters.xlsx", sheet = "coefficients") %>% 
+model.konnevesi <- read_excel("data/model-structural-parameters.xlsx", sheet = "coefficients", skip = 32) %>% 
   filter(lake == "Lake Southern Konnevesi", species == "lavaretus")
 
 ## Take antilog from daily semilog output, accumulate across days
@@ -145,20 +141,18 @@ model.hatching.all.comp <- model.hatching.all %>%
 
 
 
-temp.spawn.obs <- read_excel("data/lake-konnevesi-lavaretus/lake-konnevesi-spawning-lavaretus.xlsx", sheet = "lake-konnevesi-spawning") %>% 
+temp.spawn.obs <- read_excel("data/lake-konnevesi/lake-konnevesi-spawning-lavaretus.xlsx", sheet = "lake-konnevesi-spawning", skip = 27) %>% 
   group_by(year) %>% 
   filter(row_number() == 1 | row_number() == n()) %>% 
   mutate(hatch.date = rep(c("start.spawn", "end.spawn"), each = 1)) %>% 
-  select(-month, -day) %>% 
   pivot_wider(names_from = hatch.date, values_from = date) %>% 
   left_join(temp.all.ma) %>% 
   filter(date >= start.spawn, date <= end.spawn)
 
-temp.hatch.obs <- read_excel("data/lake-konnevesi-lavaretus/lake-konnevesi-hatching-lavaretus.xlsx", sheet = "lake-konnevesi-hatching") %>% 
+temp.hatch.obs <- read_excel("data/lake-konnevesi/lake-konnevesi-hatching-lavaretus.xlsx", sheet = "lake-konnevesi-hatching", skip = 27) %>% 
   group_by(year) %>% 
   filter(row_number() == 1 | row_number() == n()) %>% 
   mutate(hatch.date = rep(c("start.hatch", "end.hatch"), each = 1)) %>% 
-  select(-month, -day) %>% 
   pivot_wider(names_from = hatch.date, values_from = date) %>% 
   left_join(temp.all.ma) %>% 
   filter(date >= start.hatch, date <= end.hatch)

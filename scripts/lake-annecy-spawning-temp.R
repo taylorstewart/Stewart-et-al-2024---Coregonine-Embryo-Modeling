@@ -18,14 +18,9 @@ library(lubridateExtras)
 
 #### LOAD TEMPERATURE DATA -----------------------------------------------------------------------
 
-temp.1 <- read_excel("data/lake-annecy/lake-annecy-temperature.xlsx", sheet = "2005")
-temp.2 <- read_excel("data/lake-annecy/lake-annecy-temperature.xlsx", sheet = "2006")
-
-temp.all <- bind_rows(temp.1, temp.2) %>% 
+temp.all <- read_excel("data/lake-annecy/lake-annecy-temperature.xlsx", sheet = "temp", skip = 28) %>% 
   mutate(yday = yday(date)) %>% 
   filter(!is.na(temp_c))
-rm(temp.1, temp.2)
-
 
 ## 
 ggplot(temp.all, aes(x = date, y = temp_c)) + 
@@ -36,7 +31,7 @@ ggplot(temp.all, aes(x = date, y = temp_c)) +
   facet_wrap(~year, scales = "free_x")
 
 
-spawn <- read_excel("data/lake-annecy/lake-annecy-spawning.xlsx", sheet = "lake-annecy-spawning")
+spawn <- read_excel("data/lake-annecy/lake-annecy-spawning.xlsx", sheet = "lake-annecy-spawning", skip = 29)
 
 spawn.all <- do.call(rbind, lapply(unique(spawn$year), function(i) {
   tmp <- spawn %>% filter(year == i)

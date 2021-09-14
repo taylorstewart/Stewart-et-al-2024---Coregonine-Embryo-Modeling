@@ -9,11 +9,11 @@ library(emmeans)
 
 #### LOAD TEMPERATURE DATA -----------------------------------------------------------------------
 
-simulation.data <- fread("data/lake-constance/lake-constance-temperature.csv") %>% 
+simulation.data <- fread("data/lake-constance/lake-constance-temperature.csv", skip = 27) %>% 
   mutate(year.class = ifelse(yday > 240, year + 1, year),
          date = as.POSIXct(paste0(year, "-", month, "-", day), format = "%Y-%m-%d")) %>% 
   filter(scenario != "Historical" | year.class != 2006, year.class != 2100)
-spawn.temp.data <- fread("data/lake-constance/lake-constance-scenarios-spawning.csv") %>% 
+spawn.temp.data <- fread("data/lake-constance/lake-constance-temperature-spawning.csv", skip = 28) %>% 
   mutate(year.class = ifelse(yday > 240, year + 1, year),
          date = as.POSIXct(paste0(year, "-", month, "-", day), format = "%Y-%m-%d")) %>% 
   filter(scenario != "Historical" | year.class != 2006, year.class != 2100)
@@ -21,13 +21,13 @@ spawn.temp.data <- fread("data/lake-constance/lake-constance-scenarios-spawning.
 
 #### LOAD LAKE-SPECIFIC BIOLOGICAL PARAMETERS ----------------------------------------------------
 
-model.parameters <- read_excel("data/model-structural-parameters.xlsx", sheet = "coefficients") %>% 
+model.parameters <- read_excel("data/model-structural-parameters.xlsx", sheet = "coefficients", skip = 32) %>% 
   filter(lake == "Lake Constance", species == "lavaretus wartmanni")
 
-survival.reg <- read_excel("data/survival-regressions.xlsx", sheet = "survival-regressions") %>% 
+survival.reg <- read_excel("data/survival-regressions.xlsx", sheet = "survival-regressions", skip = 30) %>% 
   filter(lake == "Lake Constance", species == "lavaretus wartmanni")
 
-spawn.dates <- fread("data/lake-constance/lake-constance-scenarios-spawning.csv") %>% 
+spawn.dates <- fread("data/lake-constance/lake-constance-scenarios-spawning.csv", skip = 28) %>% 
   mutate(year.class = ifelse(yday > 240, year + 1, year),
          spawn.date = as.Date(round(spawn.yday, 0), origin = paste0(year, "-01-01"))) %>% 
   select(year, year.class, scenario, spawn.date)
