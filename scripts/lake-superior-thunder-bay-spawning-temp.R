@@ -18,15 +18,8 @@ library(lubridateExtras)
 
 #### LOAD TEMPERATURE DATA -----------------------------------------------------------------------
 
-temp.1 <- read_excel("data/lake-superior-thunder-bay/lake-superior-thunder-bay-temperature.xlsx", sheet = "2017")
-temp.2 <- read_excel("data/lake-superior-thunder-bay/lake-superior-thunder-bay-temperature.xlsx", sheet = "2018")
-temp.3 <- read_excel("data/lake-superior-thunder-bay/lake-superior-thunder-bay-temperature.xlsx", sheet = "2019")
-temp.4 <- read_excel("data/lake-superior-thunder-bay/lake-superior-thunder-bay-temperature.xlsx", sheet = "2020")
-temp.5 <- read_excel("data/lake-superior-thunder-bay/lake-superior-thunder-bay-temperature.xlsx", sheet = "2021")
-
-temp.all <- bind_rows(temp.1, temp.2, temp.3, temp.4, temp.5) %>% 
+temp.all <- read_excel("data/lake-superior-thunder-bay/lake-superior-thunder-bay-temperature.xlsx", sheet = "temp", skip = 28) %>% 
   mutate(yday = yday(date))
-rm(temp.1, temp.2, temp.3, temp.4, temp.5)
 
 ## 
 ggplot(temp.all, aes(x = date, y = temp_c)) + 
@@ -37,7 +30,7 @@ ggplot(temp.all, aes(x = date, y = temp_c)) +
   facet_wrap(~year, scales = "free_x")
 
 
-spawn <- read_excel("data/lake-superior-thunder-bay/lake-superior-thunder-bay-spawning.xlsx", sheet = "lake-superior-thunder-bay-spawn") %>%
+spawn <- read_excel("data/lake-superior-thunder-bay/lake-superior-thunder-bay-spawning.xlsx", sheet = "lake-superior-thunder-bay-spawn", skip = 30) %>%
   filter(percent.ripe > 10, year != 2017) %>% 
   group_by(year) %>% 
   filter(row_number() == 1) %>% 

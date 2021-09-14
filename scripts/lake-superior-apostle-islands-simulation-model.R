@@ -22,13 +22,13 @@ simulation.data <- do.call(rbind, lapply(simulation.files, function(i) {
 
 #### LOAD LAKE-SPECIFIC BIOLOGICAL PARAMETERS ----------------------------------------------------
 
-model.locations <- read_excel("data/model-population-parameters.xlsx", sheet = "bio-parameters") %>% 
+model.locations <- read_excel("data/model-population-parameters.xlsx", sheet = "bio-parameters", skip = 34) %>% 
   filter(population == "Apostle Islands")
 
-model.parameters <- read_excel("data/model-structural-parameters.xlsx", sheet = "coefficients") %>% 
+model.parameters <- read_excel("data/model-structural-parameters.xlsx", sheet = "coefficients", skip = 32) %>% 
   filter(lake == "Lake Superior")
 
-survival.reg <- read_excel("data/survival-regressions.xlsx", sheet = "survival-regressions") %>% 
+survival.reg <- read_excel("data/survival-regressions.xlsx", sheet = "survival-regressions", skip = 30) %>% 
   filter(lake == "Lake Superior")
 
 

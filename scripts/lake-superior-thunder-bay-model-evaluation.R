@@ -19,15 +19,8 @@ library(cowplot)
 
 #### LOAD TEMPERATURE DATA -----------------------------------------------------------------------
 
-temp.1 <- read_excel("data/lake-superior-thunder-bay/lake-superior-thunder-bay-temperature.xlsx", sheet = "2017")
-temp.2 <- read_excel("data/lake-superior-thunder-bay/lake-superior-thunder-bay-temperature.xlsx", sheet = "2018")
-temp.3 <- read_excel("data/lake-superior-thunder-bay/lake-superior-thunder-bay-temperature.xlsx", sheet = "2019")
-temp.4 <- read_excel("data/lake-superior-thunder-bay/lake-superior-thunder-bay-temperature.xlsx", sheet = "2020")
-temp.5 <- read_excel("data/lake-superior-thunder-bay/lake-superior-thunder-bay-temperature.xlsx", sheet = "2021")
-
-temp.all <- bind_rows(temp.1, temp.2, temp.3, temp.4, temp.5) %>% 
+temp.all <- read_excel("data/lake-superior-thunder-bay/lake-superior-thunder-bay-temperature.xlsx", sheet = "temp", skip = 28) %>% 
   mutate(yday = yday(date))
-rm(temp.1, temp.2, temp.3, temp.4, temp.5)
 
 ## Calculate a 5-day center moving average to smooth temperature curve
 ## Smoothing prevents issues below trying to find the start and stop from large daily temp deviations
@@ -46,7 +39,7 @@ ggplot(temp.all.ma, aes(x = date, y = temp.ma_c)) +
 
 #### LOAD DATA WITH SPAWNING START AND END TEMPS -------------------------------------------------
 
-model.locations <- read_excel("data/model-population-parameters.xlsx", sheet = "bio-parameters") %>% 
+model.locations <- read_excel("data/model-population-parameters.xlsx", sheet = "bio-parameters", skip = 34) %>% 
   filter(population == "Thunder Bay")
 
 
@@ -87,7 +80,7 @@ mu.spawn <- spawn.period.temp %>%
 
 #### CALCULATE MEAN HATCHING DATE ----------------------------------------------------------------
 
-mu.hatch <- read_excel("data/lake-superior-thunder-bay/lake-superior-thunder-bay-hatching.xlsx", sheet = "lake-superior-thunder-bay-hatch") %>%
+mu.hatch <- read_excel("data/lake-superior-thunder-bay/lake-superior-thunder-bay-hatching.xlsx", sheet = "lake-superior-thunder-bay-hatch", skip = 28) %>%
   mutate(hatch.yday = yday(date)) %>% 
   summarize(mu.hatch = weighted.mean(hatch.yday, mean.density)) %>% pull()
 
@@ -114,7 +107,7 @@ temp.ADD <- temp.inc %>% group_by(year) %>%
 ## Antilog: 10^(log(y))
 
 ## Colby and Brooke
-model.CB <- read_excel("data/model-structural-parameters.xlsx", sheet = "coefficients") %>% 
+model.CB <- read_excel("data/model-structural-parameters.xlsx", sheet = "coefficients", skip = 32) %>% 
   filter(lake == "Pickeral Lake")
 
 ## Take antilog from daily semilog output, accumulate across days
@@ -132,7 +125,7 @@ model.CB.perc.max <- model.CB.perc %>% group_by(year) %>%
   mutate(model = "CB")
 
 ## Stewart et al. 2021
-model.superior <- read_excel("data/model-structural-parameters.xlsx", sheet = "coefficients") %>% 
+model.superior <- read_excel("data/model-structural-parameters.xlsx", sheet = "coefficients", skip = 32) %>% 
   filter(lake == "Lake Superior")
 
 ## Take antilog from daily semilog output, accumulate across days

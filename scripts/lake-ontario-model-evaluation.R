@@ -17,20 +17,8 @@ library(cowplot)
 
 #### LOAD TEMPERATURE DATA -----------------------------------------------------------------------
 
-temp.1 <- read_excel("data/lake-ontario/lake-ontario-temperature.xlsx", sheet = "2012")
-temp.2 <- read_excel("data/lake-ontario/lake-ontario-temperature.xlsx", sheet = "2013")
-temp.3 <- read_excel("data/lake-ontario/lake-ontario-temperature.xlsx", sheet = "2014")
-temp.4 <- read_excel("data/lake-ontario/lake-ontario-temperature.xlsx", sheet = "2015")
-temp.5 <- read_excel("data/lake-ontario/lake-ontario-temperature.xlsx", sheet = "2016")
-temp.6 <- read_excel("data/lake-ontario/lake-ontario-temperature.xlsx", sheet = "2017")
-temp.7 <- read_excel("data/lake-ontario/lake-ontario-temperature.xlsx", sheet = "2018")
-temp.8 <- read_excel("data/lake-ontario/lake-ontario-temperature.xlsx", sheet = "2019")
-temp.9 <- read_excel("data/lake-ontario/lake-ontario-temperature.xlsx", sheet = "2020")
-temp.10 <- read_excel("data/lake-ontario/lake-ontario-temperature.xlsx", sheet = "2020")
-
-temp.all <- bind_rows(temp.1, temp.2, temp.3, temp.4, temp.5, temp.6, temp.7, temp.8, temp.9, temp.10) %>% 
+temp.all <- read_excel("data/lake-ontario/lake-ontario-temperature.xlsx", sheet = "temp", skip = 28) %>% 
   mutate(yday = yday(date))
-rm(temp.1, temp.2, temp.3, temp.4, temp.5, temp.6, temp.7, temp.8, temp.9, temp.10)
 
 ## Calculate a 5-day center moving average to smooth temperature curve
 ## Smoothing prevents issues below trying to find the start and stop from large daily temp deviations
@@ -49,7 +37,7 @@ ggplot(temp.all.ma, aes(x = date, y = temp.ma_c)) +
 
 #### LOAD DATA WITH SPAWNING START AND END TEMPS -------------------------------------------------
 
-model.locations <- read_excel("data/model-population-parameters.xlsx", sheet = "bio-parameters") %>% 
+model.locations <- read_excel("data/model-population-parameters.xlsx", sheet = "bio-parameters", skip = 34) %>% 
   filter(population == "Chaumont Bay")
 
 
@@ -90,7 +78,7 @@ mu.spawn <- spawn.period.temp %>%
 
 #### CALCULATE MEAN HATCHING DATE ----------------------------------------------------------------
 
-mu.hatch <- read_excel("data/lake-ontario/lake-ontario-hatching.xlsx", sheet = "lake-ontario-hatching") %>%
+mu.hatch <- read_excel("data/lake-ontario/lake-ontario-hatching.xlsx", sheet = "lake-ontario-hatching", skip = 27) %>%
   group_by(year) %>% 
   summarize(mu.hatch.date = as.Date(weighted.mean(date, mean.density), format = "%Y-%m-%d")) %>% 
   mutate(mu.hatch.yday = yday(mu.hatch.date)) %>% 
@@ -117,7 +105,7 @@ temp.ADD <- temp.inc %>% group_by(year) %>%
 ## Antilog: 10^(log(y))
 
 ## Colby and Brooke
-model.CB <- read_excel("data/model-structural-parameters.xlsx", sheet = "coefficients") %>% 
+model.CB <- read_excel("data/model-structural-parameters.xlsx", sheet = "coefficients", skip = 32) %>% 
   filter(lake == "Pickeral Lake")
 
 ## Take antilog from daily semilog output, accumulate across days
@@ -136,7 +124,7 @@ model.CB.perc.max <- model.CB.perc %>% group_by(year) %>%
 
 
 ## Stewart et al. 2021
-model.ontario <- read_excel("data/model-structural-parameters.xlsx", sheet = "coefficients") %>% 
+model.ontario <- read_excel("data/model-structural-parameters.xlsx", sheet = "coefficients", skip = 32) %>% 
   filter(lake == "Lake Ontario")
 
 ## Take antilog from daily semilog output, accumulate across days

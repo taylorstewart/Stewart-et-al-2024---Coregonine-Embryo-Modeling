@@ -13,7 +13,7 @@ library(readxl)
 
 # LOAD LARVAL LENGTH AND ABUNDANCE DATA -------------------------------------------------------
 
-larvae <- read_excel("data/lake-superior-apostle-islands/lake-superior-apostle-islands-larval-lengths.xlsx", sheet = "data") %>% 
+larvae <- read_excel("data/lake-superior-apostle-islands/lake-superior-apostle-islands-larval-lengths.xlsx", sheet = "data", skip = 32) %>% 
   filter(!is.na(LENGTH))
 
 
@@ -35,7 +35,7 @@ larvae.back.summary <- larvae.back %>% group_by(YEAR) %>%
             lower.dist = mean.date-sigma.hatch,
             upper.dist = mean.date+sigma.hatch)
 
-write.csv(larvae.back.summary, "data/lake-superior-apostle-islands/lake-superior-apis-hatching.csv", row.names = FALSE)
+#write.csv(larvae.back.summary, "data/lake-superior-apostle-islands/lake-superior-apis-hatching.csv", row.names = FALSE)
 
 
 ggplot(larvae.back, aes(x = hatch.date.noYear)) + 
