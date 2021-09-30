@@ -118,7 +118,7 @@ plot.dpf.anomaly.LC <- ggplot(simulation.anomaly.LC, aes(x = year.class, y = mea
   scale_y_continuous(limits = c(-26, 11), breaks = seq(-25, 10, 5), expand = c(0, 0)) +
   scale_x_continuous(limits = c(1900, 2100), breaks = seq(1900, 2100, 25), expand = c(0, 0.2)) +
   scale_color_manual(values = c("gray50","#2c7bb6", "#fdae61",  "#d7191c")) +
-  labs(y = "Incubation Length\nAnomaly (Days)") +
+  labs(y = "Incubation Duration\nAnomaly (Days)") +
   theme_few() + 
   theme(axis.title.x = element_blank(),
         axis.title.y = element_text(size = 18, margin = margin(0, 10, 0, 0)),
@@ -206,7 +206,7 @@ plot.dpf.anomaly.LA <- ggplot(simulation.anomaly.LA, aes(x = year.class, y = mea
   scale_y_continuous(limits = c(-26, 11), breaks = seq(-25, 10, 5), expand = c(0, 0)) +
   scale_x_continuous(limits = c(1900, 2100), breaks = seq(1900, 2100, 25), expand = c(0, 0.2)) +
   scale_color_manual(values = c("gray50","#2c7bb6", "#fdae61",  "#d7191c")) +
-  labs(y = "Incubation Length\nAnomaly (Days)") +
+  labs(y = "Incubation Duration\nAnomaly (Days)") +
   theme_few() + 
   theme(axis.title = element_blank(),
         axis.text.x = element_text(size = 15, angle = 45, hjust = 1),

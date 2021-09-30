@@ -234,7 +234,7 @@ simulation.anomaly.slope.LS.APIS <- do.call(rbind, lapply(trait.list, function(i
                        ci.upper = round(c(ci.2.6.upper, ci.6.0.upper, ci.8.5.upper), 3))
 }))
 
-write.csv(simulation.anomaly.slope.LS.APIS, "data/anomaly-slopes/lake-superior-apostle-islands-slope.csv", row.names = FALSE)
+#write.csv(simulation.anomaly.slope.LS.APIS, "data/anomaly-slopes/lake-superior-apostle-islands-slope.csv", row.names = FALSE)
 
 
 simulation.anomaly.comp.LS.APIS <- do.call(rbind, lapply(trait.list, function(i) {
@@ -265,7 +265,7 @@ simulation.anomaly.comp.LS.APIS <- do.call(rbind, lapply(trait.list, function(i)
   }
 }))
 
-write.csv(simulation.anomaly.comp.LS.APIS, "data/anomaly-slopes/lake-superior-apostle-islands-multComp.csv", row.names = FALSE)
+#write.csv(simulation.anomaly.comp.LS.APIS, "data/anomaly-slopes/lake-superior-apostle-islands-multComp.csv", row.names = FALSE)
 
 ## Clean environment
 rm("simulation.files", "simulation.data", "simulation.data.filt", "model.locations", "model.parameters", "simulation.model.hist.mean.LS.APIS", "survival.reg")

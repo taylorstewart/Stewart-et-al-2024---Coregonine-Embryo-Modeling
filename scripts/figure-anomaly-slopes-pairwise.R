@@ -17,7 +17,7 @@ slopes <- bind_rows(ls.apis.slopes, lo.slopes, lk.slopes, lc.slopes, la.slopes) 
                              labels = c("Lake Konnevesi\nVendace", "Lake Superior\nCisco", "Lake Ontario\nCisco", "Lake Constance\nWhitefish", "Lake Annecy\nWhitefish")),
          trait = factor(trait, ordered = TRUE,
                         levels = c("spawn", "dpf", "hatch"),
-                        labels = c("Spawning Date", "Incubation Length", "Hatching Date")))
+                        labels = c("Spawning Date", "Incubation Duration", "Hatching Date")))
 
 ls.apis.multComp <- read.csv("data/anomaly-slopes/lake-superior-apostle-islands-multComp.csv") %>% mutate(population = "Lake Superior - Cisco")
 lo.multComp <- read.csv("data/anomaly-slopes/lake-ontario-multComp.csv") %>% mutate(population = "Lake Ontario - Cisco")
