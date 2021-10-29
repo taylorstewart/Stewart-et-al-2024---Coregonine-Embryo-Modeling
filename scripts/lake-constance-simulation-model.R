@@ -73,9 +73,7 @@ simulation.model.hatch.LC <- do.call(rbind, lapply(unique(simulation.data$year.c
   spawn.period.temp <- spawn.temp.data.annual %>% 
     left_join(spawn.start.date) %>% 
     left_join(spawn.end.date) %>% 
-    mutate(spawn.length_days = as.Date(spawn.end.date) - as.Date(spawn.start.date),
-           spawn.end.date = as.Date(ifelse(spawn.length_days > 20, spawn.start.date+20, spawn.end.date), origin = "1970-01-01"),
-           spawn.length_days = as.Date(spawn.end.date) - as.Date(spawn.start.date)) %>%
+    mutate(spawn.length_days = as.Date(spawn.end.date) - as.Date(spawn.start.date)) %>%
     group_by(scenario) %>% 
     filter(date >= spawn.start.date, date <= spawn.end.date) %>% 
     arrange(scenario, date)
