@@ -19,12 +19,12 @@ library(cowplot)
 
 temp.all <- read_excel("data/lake-geneva/lake-geneva-temperature.xlsx", sheet = "temp", skip = 28) %>% 
   mutate(yday = yday(date)) %>% 
-  filter(year >= 2010)
+  filter(year >= 1996)
 
 ## Calculate a 5-day center moving average to smooth temperature curve
 ## Smoothing prevents issues below trying to find the start and stop from large daily temp deviations
 temp.all.ma <- temp.all %>% group_by(year) %>% 
-  mutate(temp.ma_c = frollmean(temp_c, n = 5, align = "center")) %>% 
+  mutate(temp.ma_c = frollmean(temp_c, n = 7, align = "center")) %>% 
   filter(!is.na(temp.ma_c))
 
 ## 
@@ -71,34 +71,57 @@ spawn.period.temp <- temp.all.ma %>%
   group_by(year) %>% 
   filter(date >= spawn.start.date, date <= spawn.end.date)
 
-mu.spawn <- spawn.period.temp %>% 
+spawn.date <- spawn.period.temp %>% 
   group_by(year) %>% 
   summarize(mu.spawn.date = mean(date)) %>% 
-  mutate(mu.spawn.yday = yday(mu.spawn.date))
-
+  ungroup() %>% 
+  select(year, spawn.date = mu.spawn.date)
 
 #### CALCULATE MEAN HATCHING DATE ----------------------------------------------------------------
 
-mu.hatch <- read_excel("data/lake-geneva/lake-geneva-hatching.xlsx", sheet = "lake-geneva-hatching", skip = 27) %>%
+hatch <- read_excel("data/lake-geneva/lake-geneva-hatching.xlsx", sheet = "lake-geneva-hatching", skip = 27) %>%
   group_by(year) %>% 
   summarize(mu.hatch.date = as.Date(weighted.mean(date, abundance), format = "%Y-%m-%d")) %>% 
   mutate(mu.hatch.yday = yday(mu.hatch.date)) %>% 
-  summarize(mu.hatch = as.integer(mean(mu.hatch.yday))) %>% pull()
+  ungroup()
+
+hatch.temp <- temp.all.ma %>% left_join(hatch) %>%
+  group_by(year) %>% 
+  filter(date == mu.hatch.date) %>% 
+  ungroup() %>% 
+  summarize(mean_temp = mean(temp_c)) %>% pull(mean_temp)
+
+## Find date of lowest temp for each year
+temp_low <- temp.all.ma %>% 
+  group_by(year) %>% 
+  filter(temp.ma_c == min(temp.ma_c)) %>% 
+  select(year, temp.low.yday = yday)
+
+hatch.date <- temp.all.ma %>% 
+  left_join(temp_low) %>% 
+  group_by(year) %>% 
+  filter(yday >= temp.low.yday, yday < 150) %>% 
+  filter(temp.ma_c >= hatch.temp) %>% 
+  arrange(date) %>% 
+  slice(1) %>% 
+  select(year, hatch.date = date)
 
 
 ## Filter temp profiles by start and end dates, calculate daily degree-days
 
-temp.inc <- temp.all.ma %>% left_join(mu.spawn) %>%
-  group_by(year) %>% 
-  filter(date >= mu.spawn.date, yday <= mu.hatch) %>% 
-  select(-mu.spawn.date, -mu.spawn.yday)
+temp.inc <- temp.all.ma %>% left_join(spawn.date) %>% left_join(hatch.date) %>% group_by(year) %>% filter(date >= spawn.date, date <= hatch.date) %>% 
+  arrange(year)
 
-
-## Find ADD at hatch
-temp.ADD <- temp.inc %>% group_by(year) %>% 
+## Find DOY and ADD at hatch
+temp.ep.hatch <- temp.inc %>% group_by(year) %>% 
   mutate(ADD = cumsum(temp.ma_c)) %>% 
   filter(ADD == max(ADD)) %>% 
-  select(date, year, temp.ma_c, ADD)
+  select(date, year, temp.ma_c, yday, ADD)
+
+## Filter temp profiles by start and end dates, calculate daily degree-days
+
+temp.inc.models <- temp.all.ma %>% left_join(spawn.date) %>% group_by(year) %>% filter(date >= spawn.date) %>% 
+  arrange(year)
 
 
 #### EUROPEAN WHITEFISH MODELS -------------------------------------------------------------------
@@ -109,12 +132,11 @@ temp.ADD <- temp.inc %>% group_by(year) %>%
 
 ## Eckmann 1987 (uses natural log)
 model.EC <- read_excel("data/model-structural-parameters.xlsx", sheet = "coefficients", skip = 32) %>% 
-  filter(lake == "Lake Constance", morph == "littoral", source == "Eckmann (1987)")
+  filter(lake == "Lake Constance", species == "lavaretus macrophthalmus")
 
 ## Take antilog from daily semilog output, accumulate across days
-model.EC.perc <- temp.all.ma %>% left_join(mu.spawn) %>% 
+model.EC.perc <- temp.inc.models %>% 
   group_by(year) %>% 
-  filter(date >= mu.spawn.date) %>% 
   mutate(perc.day = (10^(model.EC$a + model.EC$b * temp.ma_c + model.EC$c * temp.ma_c^2))*100,
          perc.cum = cumsum(perc.day)) %>% 
   filter(perc.cum <= 100) %>%
@@ -131,34 +153,42 @@ model.geneva <- read_excel("data/model-structural-parameters.xlsx", sheet = "coe
   filter(lake == "Lake Geneva")
 
 ## Take antilog from daily semilog output, accumulate across days
-model.geneva.perc <- temp.all.ma %>%left_join(mu.spawn) %>% 
+model.geneva.perc <- temp.inc.models %>%
   group_by(year) %>% 
-  filter(date >= mu.spawn.date) %>% 
   mutate(perc.day = (10^(model.geneva$a + model.geneva$b * temp.ma_c))*100,
-         perc.cum = cumsum(perc.day),) %>% 
+         perc.cum = cumsum(perc.day)) %>% 
   filter(perc.cum <= 100) %>%
   mutate(ADD = cumsum(temp.ma_c))
 
 model.geneva.perc.max <- model.geneva.perc %>% group_by(year) %>% 
   filter(perc.cum == max(perc.cum)) %>% 
   select(date, year, temp.ma_c, ADD) %>% 
-  mutate(model = "GV")
+  mutate(model = "GN")
 
 
 #### COMBINE ALL MODEL HATCHING ESTIMATES --------------------------------------------------------
 
-model.hatching.all <- temp.ADD %>% 
+model.hatching.all <- temp.ep.hatch %>% 
   mutate(model = "EP") %>% 
-  bind_rows(., model.EC.perc.max, model.geneva.perc.max) %>% 
-  mutate(model = factor(model, ordered = TRUE, levels = c("EP", "GV", "EC")),
+  bind_rows(., model.geneva.perc.max, model.EC.perc.max) %>% 
+  mutate(model = factor(model, ordered = TRUE, levels = c("EP", "GN", "EC")),
          yday = yday(date))
 
-model.hatching.all.comp <- model.hatching.all %>% 
+model.hatching.all.add.comp <- model.hatching.all %>% 
   group_by(model) %>% 
   summarize(mean.ADD = mean(ADD)) %>% 
   select(model, mean.ADD) %>% 
   pivot_wider(names_from = model, values_from = mean.ADD) %>% 
-  mutate(diff = EP-GV)
+  mutate(dif.GN = EP-GN,
+         diff.EC = EP-EC)
+
+model.hatching.all.yday.comp <- model.hatching.all %>% 
+  group_by(model) %>% 
+  summarize(mean.yday = mean(yday)) %>% 
+  select(model, mean.yday) %>% 
+  pivot_wider(names_from = model, values_from = mean.yday) %>% 
+  mutate(dif.GN = EP-GN,
+         diff.EC = EP-EC)
 
 
 #### VISUALIZATIONS ------------------------------------------------------------------------------

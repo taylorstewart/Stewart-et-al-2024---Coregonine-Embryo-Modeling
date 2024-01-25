@@ -28,9 +28,6 @@ model.locations <- read_excel("data/model-population-parameters.xlsx", sheet = "
 model.parameters <- read_excel("data/model-structural-parameters.xlsx", sheet = "coefficients", skip = 32) %>% 
   filter(lake == "Lake Southern Konnevesi", species == "albula")
 
-survival.reg <- read_excel("data/survival-regressions.xlsx", sheet = "survival-regressions", skip = 30) %>% 
-  filter(lake == "Lake Southern Konnevesi", species == "albula")
-
 
 #### FILTER SIMULATION TEMPERATURES TO SPAWNING DEPTH --------------------------------------------
 
@@ -125,13 +122,7 @@ simulation.model.hatch.LK <- do.call(rbind, lapply(unique(simulation.data.filt$y
         summarize(mean.inc.temp_c = mean(mean.temp_c),
                   median.inc.temp_c = median(mean.temp_c))
       simulation.temp.numeric <- simulation.temp %>% pull(mean.inc.temp_c)
-      
-      ## Calculate survival estimate
-      surv.est <- survival.reg %>% mutate(interval = between(simulation.temp.numeric, start.temp, end.temp)) %>% 
-        filter(interval == "TRUE") %>% 
-        mutate(surv.est = (m * simulation.temp.numeric) + b) %>% pull(surv.est)
-      embryo.surv <- floor(daily.eggs * surv.est)
-      
+
       ## Extract hatch date
       simulation.data.model.output.max <- simulation.data.model.output %>% 
         slice(which.max(perc.cum)) %>% 
@@ -145,14 +136,12 @@ simulation.model.hatch.LK <- do.call(rbind, lapply(unique(simulation.data.filt$y
         select(scenario, year.class, spawn.date, spawn.yday, spawn.length_days, spawn.temp_c, hatch.date = date, hatch.yday, hatch.temp_c = mean.temp_c, dpf, ADD) %>% 
         bind_cols(simulation.temp)
       
-      ## Repeat rows to equal cohort size and assign survival
+      ## Repeat rows to equal cohort size
       simulation.data.model.output.max.rep <- simulation.data.model.output.max %>% slice(rep(1:n(), each = daily.eggs)) %>% 
-        mutate(daily.egg.rep = 1:n(),
-               surv = c(rep(1, embryo.surv), rep(0, n()-embryo.surv)),
-               inc.temp_c = simulation.temp.numeric)
+        mutate(daily.egg.rep = 1:n())
     })) %>% 
       mutate(hatch.length_days = length(unique(hatch.yday))) %>% 
-      select(1:8, hatch.length_days, 9:16)
+      select(1:8, hatch.length_days, 9:14)
   }))
 }))
 
@@ -161,7 +150,7 @@ simulation.model.hatch.LK <- do.call(rbind, lapply(unique(simulation.data.filt$y
 
 ## historical means across 1900-2005
 simulation.model.hist.mean.LK <- simulation.model.hatch.LK %>% 
-  filter(scenario == "Historical", surv == 1) %>% 
+  filter(scenario == "Historical") %>% 
   summarize(mean.hist.spawn.yday = mean(spawn.yday),
             mean.hist.hatch.yday = mean(hatch.yday),
             mean.hist.hatch.length = mean(hatch.length_days),
@@ -170,7 +159,6 @@ simulation.model.hist.mean.LK <- simulation.model.hatch.LK %>%
 
 ## calculate anomaly
 simulation.anomaly.LK <- simulation.model.hatch.LK %>%
-  filter(surv == 1) %>% 
   group_by(scenario) %>% 
   distinct(spawn.date, .keep_all = TRUE) %>% 
   mutate(mean.hist.spawn.yday = simulation.model.hist.mean.LK$mean.hist.spawn.yday,
@@ -268,4 +256,4 @@ simulation.anomaly.comp.LK <- do.call(rbind, lapply(trait.list, function(i) {
 write.csv(simulation.anomaly.comp.LK, "data/anomaly-slopes/lake-konnevesi-albula-multComp.csv", row.names = FALSE)
 
 ## Clean environment
-rm("simulation.files", "simulation.data", "simulation.data.filt", "model.locations", "model.parameters", "simulation.model.hist.mean.LK", "survival.reg", "trait.list")
+rm("simulation.files", "simulation.data", "simulation.data.filt", "model.locations", "model.parameters", "simulation.model.hist.mean.LK", "trait.list")

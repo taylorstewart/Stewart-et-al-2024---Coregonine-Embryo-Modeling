@@ -23,7 +23,7 @@ temp.all <- read_excel("data/lake-annecy/lake-annecy-temperature.xlsx", sheet = 
 ## Calculate a 5-day center moving average to smooth temperature curve
 ## Smoothing prevents issues below trying to find the start and stop from large daily temp deviations
 temp.all.ma <- temp.all %>% group_by(year) %>% 
-  mutate(temp.ma_c = frollmean(temp_c, n = 5, align = "center")) %>% 
+  mutate(temp.ma_c = frollmean(temp_c, n = 7, align = "center")) %>% 
   filter(!is.na(temp.ma_c))
 
 ## 
@@ -69,41 +69,57 @@ spawn.period.temp <- temp.all.ma %>%
   group_by(year) %>% 
   filter(date >= spawn.start.date, date <= spawn.end.date)
 
-mu.spawn <- spawn.period.temp %>% 
+spawn.date <- spawn.period.temp %>% 
   group_by(year) %>% 
   summarize(mu.spawn.date = mean(date)) %>% 
-  mutate(mu.spawn.yday = yday(mu.spawn.date),
-         mu.spawn.yday = ifelse(mu.spawn.yday < 100, mu.spawn.yday+365, mu.spawn.yday)) %>% 
   ungroup() %>% 
-  summarize(mu.spawn.yday = mean(mu.spawn.yday)) %>% 
-  mutate(mu.spawn.yday = ifelse(mu.spawn.yday > 365, mu.spawn.yday-365, mu.spawn.yday)) %>% pull()
-
+  select(year, spawn.date = mu.spawn.date)
 
 #### CALCULATE MEAN HATCHING DATE ----------------------------------------------------------------
 
-mu.hatch <- read_excel("data/lake-annecy/lake-annecy-hatching.xlsx", sheet = "lake-annecy-hatching", skip = 27) %>%
+hatch <- read_excel("data/lake-annecy/lake-annecy-hatching.xlsx", sheet = "lake-annecy-hatching", skip = 27) %>%
   group_by(year) %>% 
   summarize(mu.hatch.date = as.Date(weighted.mean(date, abundance), format = "%Y-%m-%d")) %>% 
   mutate(mu.hatch.yday = yday(mu.hatch.date)) %>% 
-  summarize(mu.hatch = as.integer(mean(mu.hatch.yday))) %>% pull()
+  ungroup()
+
+hatch.temp <- temp.all.ma %>% left_join(hatch) %>%
+  group_by(year) %>% 
+  filter(date == mu.hatch.date) %>% 
+  ungroup() %>% 
+  summarize(mean_temp = mean(temp_c)) %>% pull(mean_temp)
+
+## Find date of lowest temp for each year
+temp_low <- temp.all.ma %>% 
+  group_by(year) %>% 
+  filter(temp.ma_c == min(temp.ma_c)) %>% 
+  select(year, temp.low.yday = yday)
+
+hatch.date <- temp.all.ma %>% 
+  left_join(temp_low) %>% 
+  group_by(year) %>% 
+  filter(yday >= temp.low.yday, yday < 150) %>% 
+  filter(temp.ma_c >= hatch.temp) %>% 
+  arrange(date) %>% 
+  slice(1) %>% 
+  select(year, hatch.date = date)
 
 
 ## Filter temp profiles by start and end dates, calculate daily degree-days
 
-if(mu.spawn > 0 & mu.spawn < 30) {
-  temp.inc <- temp.all.ma %>% group_by(year) %>% filter(yday >= mu.spawn, yday < mu.hatch)
-} else {
-  temp.spawn <- temp.all.ma %>% group_by(year) %>% filter(yday >= mu.spawn)
-  temp.hatch <- temp.all.ma %>% group_by(year) %>% filter(yday <= mu.hatch)
-  temp.inc <- bind_rows(temp.spawn, temp.hatch) 
-}
+temp.inc <- temp.all.ma %>% left_join(spawn.date) %>% left_join(hatch.date) %>% group_by(year) %>% filter(date >= spawn.date, date <= hatch.date) %>% 
+  arrange(year)
 
-## Find ADD at hatch
-temp.ADD <- temp.inc %>% group_by(year) %>% 
+## Find DOY and ADD at hatch
+temp.ep.hatch <- temp.inc %>% group_by(year) %>% 
   mutate(ADD = cumsum(temp.ma_c)) %>% 
   filter(ADD == max(ADD)) %>% 
-  select(date, year, temp.ma_c, ADD)
+  select(date, year, temp.ma_c, yday, ADD)
 
+## Filter temp profiles by start and end dates, calculate daily degree-days
+
+temp.inc.models <- temp.all.ma %>% left_join(spawn.date) %>% group_by(year) %>% filter(date >= spawn.date) %>% 
+  arrange(year)
 
 #### EUROPEAN WHITEFISH MODELS -------------------------------------------------------------------
 
@@ -116,11 +132,10 @@ model.EC <- read_excel("data/model-structural-parameters.xlsx", sheet = "coeffic
   filter(lake == "Lake Constance", species == "lavaretus macrophthalmus")
 
 ## Take antilog from daily semilog output, accumulate across days
-model.EC.perc <- temp.all.ma %>%
+model.EC.perc <- temp.inc.models %>% 
   group_by(year) %>% 
-  filter(date >= as.Date(mu.spawn, origin = paste0(year, "-01-01"))) %>% 
   mutate(perc.day = (10^(model.EC$a + model.EC$b * temp.ma_c + model.EC$c * temp.ma_c^2))*100,
-         perc.cum = cumsum(perc.day),) %>% 
+         perc.cum = cumsum(perc.day)) %>% 
   filter(perc.cum <= 100) %>%
   mutate(ADD = cumsum(temp.ma_c))
 
@@ -131,38 +146,45 @@ model.EC.perc.max <- model.EC.perc %>% group_by(year) %>%
 
 
 ## Stewart et al. 2021
-model.annecy <- read_excel("data/model-structural-parameters.xlsx", sheet = "coefficients", skip = 32) %>% 
+model.geneva <- read_excel("data/model-structural-parameters.xlsx", sheet = "coefficients", skip = 32) %>% 
   filter(lake == "Lake Geneva")
 
 ## Take antilog from daily semilog output, accumulate across days
-model.annecy.perc <- temp.all.ma %>%
+model.geneva.perc <- temp.inc.models %>%
   group_by(year) %>% 
-  filter(date >= as.Date(mu.spawn, origin = paste0(year, "-01-01"))) %>% 
-  mutate(perc.day = (10^(model.annecy$a + model.annecy$b * temp.ma_c))*100,
+  mutate(perc.day = (10^(model.geneva$a + model.geneva$b * temp.ma_c))*100,
          perc.cum = cumsum(perc.day)) %>% 
   filter(perc.cum <= 100) %>%
   mutate(ADD = cumsum(temp.ma_c))
 
-model.annecy.perc.max <- model.annecy.perc %>% group_by(year) %>% 
+model.geneva.perc.max <- model.geneva.perc %>% group_by(year) %>% 
   filter(perc.cum == max(perc.cum)) %>% 
   select(date, year, temp.ma_c, ADD) %>% 
-  mutate(model = "AN")
+  mutate(model = "GN")
 
 
 #### COMBINE ALL MODEL HATCHING ESTIMATES --------------------------------------------------------
 
-model.hatching.all <- temp.ADD %>% 
+model.hatching.all <- temp.ep.hatch %>% 
   mutate(model = "EP") %>% 
-  bind_rows(., model.annecy.perc.max, model.EC.perc.max) %>% 
-  mutate(model = factor(model, ordered = TRUE, levels = c("EP", "AN", "EC")),
+  bind_rows(., model.geneva.perc.max, model.EC.perc.max) %>% 
+  mutate(model = factor(model, ordered = TRUE, levels = c("EP", "GN", "EC")),
          yday = yday(date))
 
-model.hatching.all.comp <- model.hatching.all %>% 
+model.hatching.all.add.comp <- model.hatching.all %>% 
   group_by(model) %>% 
   summarize(mean.ADD = mean(ADD)) %>% 
   select(model, mean.ADD) %>% 
   pivot_wider(names_from = model, values_from = mean.ADD) %>% 
-  mutate(dif.ANf = EP-AN,
+  mutate(dif.GN = EP-GN,
+         diff.EC = EP-EC)
+
+model.hatching.all.yday.comp <- model.hatching.all %>% 
+  group_by(model) %>% 
+  summarize(mean.yday = mean(yday)) %>% 
+  select(model, mean.yday) %>% 
+  pivot_wider(names_from = model, values_from = mean.yday) %>% 
+  mutate(dif.GN = EP-GN,
          diff.EC = EP-EC)
 
 
@@ -170,14 +192,11 @@ model.hatching.all.comp <- model.hatching.all %>%
 
 ggplot(temp.all.ma, aes(x = date, y = temp.ma_c)) + 
   geom_line(size = 0.8) +
-  geom_vline(data = data.frame(year = unique(temp.all.ma$year), 
-                               date = temp.inc %>% group_by(year) %>% slice(1) %>% pull(date)),
-             aes(xintercept = date), color = "gray25", linetype = "dashed", show.legend = FALSE) +
   geom_point(data = model.hatching.all, aes(x = as.POSIXct(date), y = temp.ma_c, fill = model, shape = model), size = 3) +
   scale_shape_manual("", values = c(21, 22, 23),
-                     labels = c("Observed Hatching", "Unpublished Thonon Data  ", "Eckmann, 1987")) +
+                     labels = c("Observed Hatching", "Unpublished Geneva Data  ", "Eckmann, 1987")) +
   scale_fill_manual("", values = c("lightsalmon", "cornflowerblue", "forestgreen"),
-                    labels = c("Observed Hatching", "Unpublished Thonon Data  ", "Eckmann, 1987")) +
+                    labels = c("Observed Hatching", "Unpublished Geneva Data  ", "Eckmann, 1987")) +
   scale_x_datetime(date_breaks = "1 month", date_labels =  "%b %d") + 
   labs(y = "Water Temperature (°C)") + 
   theme_few() + 
@@ -197,9 +216,9 @@ ggsave("figures/lake-annecy/lake-annecy-model-comparison-temp.png", height = 5.5
 plot.add <- ggplot(model.hatching.all, aes(x = factor(year), y = ADD, group = model)) +
   geom_point(aes(fill = model, shape = model), size = 3) + 
   scale_shape_manual("", values = c(21, 22, 23),
-                     labels = c("Observed Hatching", "Unpublished Thonon Data  ", "Eckmann, 1987")) +
+                     labels = c("Observed Hatching", "Unpublished Geneva Data  ", "Eckmann, 1987")) +
   scale_fill_manual("", values = c("lightsalmon", "cornflowerblue", "forestgreen"),
-                    labels = c("Observed Hatching", "Unpublished Thonon Data  ", "Eckmann, 1987")) +
+                    labels = c("Observed Hatching", "Unpublished Geneva Data  ", "Eckmann, 1987")) +
   labs(y = "Degree-days") +
   theme_few() + 
   theme(axis.text.x = element_text(angle = 45, hjust = 1),
@@ -214,9 +233,9 @@ plot.add <- ggplot(model.hatching.all, aes(x = factor(year), y = ADD, group = mo
 plot.date <- ggplot(model.hatching.all, aes(x = factor(year), y = yday, group = model)) +
   geom_point(aes(fill = model, shape = model), size = 3) + 
   scale_shape_manual("", values = c(21, 22, 23),
-                     labels = c("Observed Hatching", "Unpublished Thonon Data  ", "Eckmann, 1987")) +
+                     labels = c("Observed Hatching", "Unpublished Geneva Data  ", "Eckmann, 1987")) +
   scale_fill_manual("", values = c("lightsalmon", "cornflowerblue", "forestgreen"),
-                    labels = c("Observed Hatching", "Unpublished Thonon Data  ", "Eckmann, 1987")) +
+                    labels = c("Observed Hatching", "Unpublished Geneva Data  ", "Eckmann, 1987")) +
   labs(y = "Julian Date") +
   theme_few() + 
   theme(axis.text.x = element_text(angle = 45, hjust = 1),

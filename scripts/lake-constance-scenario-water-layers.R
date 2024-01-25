@@ -10,12 +10,11 @@ library(lubridate)
 library(data.table)
 
 
-climate.simulations.green <- fread("data/climate-simulations/simstrat-summaries/lake-green-temperature-scenario-profile.csv")
 climate.simulations.rappbode <- fread("data/climate-simulations/simstrat-summaries/lake-rappbode-temperature-scenario-profile.csv")
 climate.simulations.stechlin <- fread("data/climate-simulations/simstrat-summaries/lake-stechlin-temperature-scenario-profile.csv")
 
 ## Combine all lakes
-climate.simulations <- bind_rows(climate.simulations.green, climate.simulations.rappbode, climate.simulations.stechlin)
+climate.simulations <- bind_rows(climate.simulations.rappbode, climate.simulations.stechlin)
 
 
 #### AVERAGE DAILY TEMP ACROSS LAKES -------------------------------------------------------------

@@ -34,13 +34,16 @@ lk.eq <- simulation.anomaly.slope.LK %>% mutate(eq = paste0("y = ", sprintf("%.2
 #### CALCULATE TEMP SLOPE PER DECADE -------------------------------------------------------------
 
 simulation.inc.temp.LS.APIS <- simulation.model.hatch.LS.APIS %>% group_by(scenario, year.class) %>% 
-  summarize(inc.temp_c = mean(inc.temp_c)) %>% 
+  distinct(mean.inc.temp_c) %>% 
+  summarize(inc.temp_c = mean(mean.inc.temp_c)) %>% 
   mutate(group = "LS")
 simulation.inc.temp.LO <- simulation.model.hatch.LO %>% group_by(scenario, year.class) %>% 
-  summarize(inc.temp_c = mean(inc.temp_c)) %>% 
+  distinct(mean.inc.temp_c) %>% 
+  summarize(inc.temp_c = mean(mean.inc.temp_c)) %>% 
   mutate(group = "LO")
 simulation.inc.temp.LK <- simulation.model.hatch.LK %>% group_by(scenario, year.class) %>% 
-  summarize(inc.temp_c = mean(inc.temp_c)) %>% 
+  distinct(mean.inc.temp_c) %>% 
+  summarize(inc.temp_c = mean(mean.inc.temp_c)) %>% 
   mutate(group = "LK")
 
 ## Combine study groups
@@ -81,15 +84,15 @@ plot.spawn.anomaly.LS.APIS <- ggplot(simulation.anomaly.LS.APIS, aes(x = year.cl
   geom_line(aes(color = scenario), size = 1, alpha = 0.5) + 
   geom_smooth(data = filter(simulation.anomaly.LS.APIS, scenario != "Historical"), 
               aes(color = scenario), size = 1, method = "lm", se = FALSE, show.legend = FALSE) +
-  #geom_richtext(data = filter(ls.eq, trait == "spawn", scenario == "RCP 2.6"), 
-  #              aes(label = paste0("<span style='color:#2c7bb6'>", eq, "; R<sup>2</sup> = ", R2, "</span><br>")),
-  #              x = 1905, y = 34.5, size = 5.5, hjust = 0, vjust = 1, fill = NA, label.color = NA) +
-  #geom_richtext(data = filter(ls.eq, trait == "spawn", scenario == "RCP 6.0"), 
-  #              aes(label = paste0("<span style='color:#fdae61'>", eq, "; R<sup>2</sup> = ", R2, "</span><br>")),
-  #              x = 1905, y = 30.2, size = 5.5, hjust = 0, vjust = 1, fill = NA, label.color = NA) +
-  #geom_richtext(data = filter(ls.eq, trait == "spawn", scenario == "RCP 8.5"), 
-  #              aes(label = paste0("<span style='color:#d7191c'>", eq, "; R<sup>2</sup> = ", R2, "</span><br>")),
-  #              x = 1905, y = 25.9, size = 5.5, hjust = 0, vjust = 1, fill = NA, label.color = NA) +
+  geom_richtext(data = filter(ls.eq, trait == "spawn", scenario == "RCP 2.6"), 
+                aes(label = paste0("<span style='color:#2c7bb6'>", eq, "; R<sup>2</sup> = ", R2, "</span><br>")),
+                x = 1905, y = 34.5, size = 5.5, hjust = 0, vjust = 1, fill = NA, label.color = NA) +
+  geom_richtext(data = filter(ls.eq, trait == "spawn", scenario == "RCP 6.0"), 
+                aes(label = paste0("<span style='color:#fdae61'>", eq, "; R<sup>2</sup> = ", R2, "</span><br>")),
+                x = 1905, y = 30.2, size = 5.5, hjust = 0, vjust = 1, fill = NA, label.color = NA) +
+  geom_richtext(data = filter(ls.eq, trait == "spawn", scenario == "RCP 8.5"), 
+                aes(label = paste0("<span style='color:#d7191c'>", eq, "; R<sup>2</sup> = ", R2, "</span><br>")),
+                x = 1905, y = 25.9, size = 5.5, hjust = 0, vjust = 1, fill = NA, label.color = NA) +
   scale_y_continuous(limits = c(-7, 36), breaks = seq(-5, 35, 5), expand = c(0, 0)) +
   scale_x_continuous(limits = c(1900, 2100), breaks = seq(1900, 2100, 25), expand = c(0, 0.2)) +
   scale_color_manual(values = c("gray50","#2c7bb6", "#fdae61",  "#d7191c")) +
@@ -99,79 +102,79 @@ plot.spawn.anomaly.LS.APIS <- ggplot(simulation.anomaly.LS.APIS, aes(x = year.cl
   theme(panel.background = element_blank(), 
         panel.grid = element_blank(), 
         axis.title.x = element_blank(),
-        #axis.title.y = element_text(size = 18, margin = margin(0, 10, 0, 0)),
-        axis.title.y = element_blank(),
-        #axis.text.x = element_text(size = 15, angle = 45, hjust = 1),
-        #axis.text.y = element_text(size = 15),
-        axis.text.x = element_text(size = 18, angle = 45, hjust = 1),
-        axis.text.y = element_text(size = 18),
+        axis.title.y = element_text(size = 18, margin = margin(0, 10, 0, 0)),
+        #axis.title.y = element_blank(),
+        axis.text.x = element_text(size = 15, angle = 45, hjust = 1),
+        axis.text.y = element_text(size = 15),
+        #axis.text.x = element_text(size = 18, angle = 45, hjust = 1),
+        #axis.text.y = element_text(size = 18),
         axis.ticks.length = unit(2, 'mm'),
         legend.title = element_blank(),
         legend.text = element_text(size = 18),
         legend.key.width = unit(1.5, 'cm'),
         legend.position = "none",
         legend.background = element_rect(fill = "transparent"),
-        panel.border = element_rect(size = 1.5),
+        panel.border = element_rect(linewidth = 1.5),
         plot.margin = unit(c(5.5, 2, 1, 2.5), 'mm'))
 
 plot.dpf.anomaly.LS.APIS <- ggplot(simulation.anomaly.LS.APIS, aes(x = year.class, y = mean.dpf.anomaly, group = scenario)) +
   geom_hline(yintercept = 0, color = "gray70") +
   geom_line(aes(color = scenario), size = 1, alpha = 0.5) + 
   geom_smooth(data = filter(simulation.anomaly.LS.APIS, scenario != "Historical"), aes(color = scenario), size = 1, method = "lm", se = FALSE, show.legend = FALSE) +
-  #geom_richtext(data = filter(ls.eq, trait == "dpf", scenario == "RCP 2.6"), 
-  #              aes(label = paste0("<span style='color:#2c7bb6'>", eq, "; R<sup>2</sup> = ", R2, "</span><br>")),
-  #              x = 1905, y = -28.7, size = 5.5, hjust = 0, vjust = 1, fill = NA, label.color = NA) +
-  #geom_richtext(data = filter(ls.eq, trait == "dpf", scenario == "RCP 6.0"), 
-  #              aes(label = paste0("<span style='color:#fdae61'>", eq, "; R<sup>2</sup> = ", R2, "</span><br>")),
-  #              x = 1905, y = -34.9, size = 5.5, hjust = 0, vjust = 1, fill = NA, label.color = NA) +
-  #geom_richtext(data = filter(ls.eq, trait == "dpf", scenario == "RCP 8.5"), 
-  #              aes(label = paste0("<span style='color:#d7191c'>", eq, "; R<sup>2</sup> = ", R2, "</span><br>")),
-  #              x = 1905, y = -41.1, size = 5.5, hjust = 0, vjust = 1, fill = NA, label.color = NA) +
+  geom_richtext(data = filter(ls.eq, trait == "dpf", scenario == "RCP 2.6"), 
+                aes(label = paste0("<span style='color:#2c7bb6'>", eq, "; R<sup>2</sup> = ", R2, "</span><br>")),
+                x = 1905, y = -28.7, size = 5.5, hjust = 0, vjust = 1, fill = NA, label.color = NA) +
+  geom_richtext(data = filter(ls.eq, trait == "dpf", scenario == "RCP 6.0"), 
+                aes(label = paste0("<span style='color:#fdae61'>", eq, "; R<sup>2</sup> = ", R2, "</span><br>")),
+                x = 1905, y = -34.9, size = 5.5, hjust = 0, vjust = 1, fill = NA, label.color = NA) +
+  geom_richtext(data = filter(ls.eq, trait == "dpf", scenario == "RCP 8.5"), 
+                aes(label = paste0("<span style='color:#d7191c'>", eq, "; R<sup>2</sup> = ", R2, "</span><br>")),
+                x = 1905, y = -41.1, size = 5.5, hjust = 0, vjust = 1, fill = NA, label.color = NA) +
   scale_y_continuous(limits = c(-51, 11), breaks = seq(-50, 10, 10), expand = c(0, 0)) +
   scale_x_continuous(limits = c(1900, 2100), breaks = seq(1900, 2100, 25), expand = c(0, 0.2)) +
   scale_color_manual(values = c("gray50","#2c7bb6", "#fdae61",  "#d7191c")) +
   labs(y = "Incubation Duration\nAnomaly (Days)") +
   theme_few() + 
   theme(axis.title.x = element_blank(),
-        #axis.title.y = element_text(size = 18, margin = margin(0, 10, 0, 0)),
-        axis.title.y = element_blank(),
-        #axis.text.x = element_text(size = 15, angle = 45, hjust = 1),
-        #axis.text.y = element_text(size = 15),
-        axis.text.x = element_text(size = 18, angle = 45, hjust = 1),
-        axis.text.y = element_text(size = 18),
+        axis.title.y = element_text(size = 18, margin = margin(0, 10, 0, 0)),
+        #axis.title.y = element_blank(),
+        axis.text.x = element_text(size = 15, angle = 45, hjust = 1),
+        axis.text.y = element_text(size = 15),
+        #axis.text.x = element_text(size = 18, angle = 45, hjust = 1),
+        #axis.text.y = element_text(size = 18),
         axis.ticks.length = unit(2, 'mm'),
         legend.position = "none",
-        panel.border = element_rect(size = 1.5),
+        panel.border = element_rect(linewidth = 1.5),
         plot.margin = unit(c(5.5, 2, 1, 1), 'mm'))
 
 plot.hatch.anomaly.LS.APIS <- ggplot(simulation.anomaly.LS.APIS, aes(x = year.class, y = mean.hatch.yday.anomaly, group = scenario)) +
   geom_hline(yintercept = 0, color = "gray70") +
   geom_line(aes(color = scenario), size = 1, alpha = 0.5) + 
   geom_smooth(data = filter(simulation.anomaly.LS.APIS, scenario != "Historical"), aes(color = scenario), size = 1, method = "lm", se = FALSE, show.legend = FALSE) +
-  #geom_richtext(data = filter(ls.eq, trait == "hatch", scenario == "RCP 2.6"), 
-  #              aes(label = paste0("<span style='color:#2c7bb6'>", eq, "; R<sup>2</sup> = ", R2, "</span><br>")),
-  #              x = 1905, y = -10.5, size = 5.5, hjust = 0, vjust = 1, fill = NA, label.color = NA) +
-  #geom_richtext(data = filter(ls.eq, trait == "hatch", scenario == "RCP 6.0"), 
-  #              aes(label = paste0("<span style='color:#fdae61'>", eq, "; R<sup>2</sup> = ", R2, "</span><br>")),
-  #              x = 1905, y = -14.0, size = 5.5, hjust = 0, vjust = 1, fill = NA, label.color = NA) +
-  #geom_richtext(data = filter(ls.eq, trait == "hatch", scenario == "RCP 8.5"), 
-  #              aes(label = paste0("<span style='color:#d7191c'>", eq, "; R<sup>2</sup> = ", R2, "</span><br>", collapse = "")),
-  #              x = 1905, y = -17.5, size = 5.5, hjust = 0, vjust = 1, fill = NA, label.color = NA) +
+  geom_richtext(data = filter(ls.eq, trait == "hatch", scenario == "RCP 2.6"), 
+                aes(label = paste0("<span style='color:#2c7bb6'>", eq, "; R<sup>2</sup> = ", R2, "</span><br>")),
+                x = 1905, y = -10.5, size = 5.5, hjust = 0, vjust = 1, fill = NA, label.color = NA) +
+  geom_richtext(data = filter(ls.eq, trait == "hatch", scenario == "RCP 6.0"), 
+                aes(label = paste0("<span style='color:#fdae61'>", eq, "; R<sup>2</sup> = ", R2, "</span><br>")),
+                x = 1905, y = -14.0, size = 5.5, hjust = 0, vjust = 1, fill = NA, label.color = NA) +
+  geom_richtext(data = filter(ls.eq, trait == "hatch", scenario == "RCP 8.5"), 
+                aes(label = paste0("<span style='color:#d7191c'>", eq, "; R<sup>2</sup> = ", R2, "</span><br>", collapse = "")),
+                x = 1905, y = -17.5, size = 5.5, hjust = 0, vjust = 1, fill = NA, label.color = NA) +
   scale_y_continuous(limits = c(-23, 12), breaks = seq(-20, 10, 5), expand = c(0, 0)) +
   scale_x_continuous(limits = c(1900, 2100), breaks = seq(1900, 2100, 25), expand = c(0, 0.2)) +
   scale_color_manual(values = c("gray50","#2c7bb6", "#fdae61",  "#d7191c")) +
   labs(y = "Hatching Date\nAnomaly (Days)") +
   theme_few() + 
   theme(axis.title.x = element_blank(),
-        #axis.title.y = element_text(size = 18, margin = margin(0, 10, 0, 0)),
-        axis.title.y = element_blank(),
-        #axis.text.x = element_text(size = 15, angle = 45, hjust = 1),
-        #axis.text.y = element_text(size = 15),
-        axis.text.x = element_text(size = 18, angle = 45, hjust = 1),
-        axis.text.y = element_text(size = 18),
+        axis.title.y = element_text(size = 18, margin = margin(0, 10, 0, 0)),
+        #axis.title.y = element_blank(),
+        axis.text.x = element_text(size = 15, angle = 45, hjust = 1),
+        axis.text.y = element_text(size = 15),
+        #axis.text.x = element_text(size = 18, angle = 45, hjust = 1),
+        #axis.text.y = element_text(size = 18),
         axis.ticks.length = unit(2, 'mm'),
         legend.position = "none",
-        panel.border = element_rect(size = 1.5),
+        panel.border = element_rect(linewidth = 1.5),
         plot.margin = unit(c(4.5, 2, 2, 1), 'mm'))
 
 
@@ -181,86 +184,86 @@ plot.spawn.anomaly.LO <- ggplot(simulation.anomaly.LO, aes(x = year.class, y = m
   geom_hline(yintercept = 0, color = "gray70") +
   geom_line(aes(color = scenario), size = 1, alpha = 0.5) + 
   geom_smooth(data = filter(simulation.anomaly.LO, scenario != "Historical"), aes(color = scenario), size = 1, method = "lm", se = FALSE, show.legend = FALSE) +
-  #geom_richtext(data = filter(lo.eq, trait == "spawn", scenario == "RCP 2.6"), 
-  #              aes(label = paste0("<span style='color:#2c7bb6'>", eq, "; R<sup>2</sup> = ", R2, "</span><br>")),
-  #              x = 1905, y = 34.5, size = 5.5, hjust = 0, vjust = 1, fill = NA, label.color = NA) +
-  #geom_richtext(data = filter(lo.eq, trait == "spawn", scenario == "RCP 6.0"), 
-  #              aes(label = paste0("<span style='color:#fdae61'>", eq, "; R<sup>2</sup> = ", R2, "</span><br>")),
-  #              x = 1905, y = 30.2, size = 5.5, hjust = 0, vjust = 1, fill = NA, label.color = NA) +
-  #geom_richtext(data = filter(lo.eq, trait == "spawn", scenario == "RCP 8.5"), 
-  #              aes(label = paste0("<span style='color:#d7191c'>", eq, "; R<sup>2</sup> = ", R2, "</span><br>")),
-  #              x = 1905, y = 25.9, size = 5.5, hjust = 0, vjust = 1, fill = NA, label.color = NA) +
+  geom_richtext(data = filter(lo.eq, trait == "spawn", scenario == "RCP 2.6"), 
+                aes(label = paste0("<span style='color:#2c7bb6'>", eq, "; R<sup>2</sup> = ", R2, "</span><br>")),
+                x = 1905, y = 34.5, size = 5.5, hjust = 0, vjust = 1, fill = NA, label.color = NA) +
+  geom_richtext(data = filter(lo.eq, trait == "spawn", scenario == "RCP 6.0"), 
+                aes(label = paste0("<span style='color:#fdae61'>", eq, "; R<sup>2</sup> = ", R2, "</span><br>")),
+                x = 1905, y = 30.2, size = 5.5, hjust = 0, vjust = 1, fill = NA, label.color = NA) +
+  geom_richtext(data = filter(lo.eq, trait == "spawn", scenario == "RCP 8.5"), 
+                aes(label = paste0("<span style='color:#d7191c'>", eq, "; R<sup>2</sup> = ", R2, "</span><br>")),
+                x = 1905, y = 25.9, size = 5.5, hjust = 0, vjust = 1, fill = NA, label.color = NA) +
   scale_y_continuous(limits = c(-7, 36), breaks = seq(-5, 35, 5), expand = c(0, 0)) +
   scale_x_continuous(limits = c(1900, 2100), breaks = seq(1900, 2100, 25), expand = c(0, 0.2)) +
   scale_color_manual(values = c("gray50","#2c7bb6", "#fdae61",  "#d7191c")) +
   labs(y = "Spawning Date\nAnomaly (Days)") +
   theme_few() + 
   theme(axis.title = element_blank(),
-        #axis.text.x = element_text(size = 15, angle = 45, hjust = 1),
-        #axis.text.y = element_text(size = 15),
-        axis.text.x = element_text(size = 18, angle = 45, hjust = 1),
-        axis.text.y = element_text(size = 18),
+        axis.text.x = element_text(size = 15, angle = 45, hjust = 1),
+        axis.text.y = element_text(size = 15),
+        #axis.text.x = element_text(size = 18, angle = 45, hjust = 1),
+        #axis.text.y = element_text(size = 18),
         axis.ticks.length = unit(2, 'mm'),
         legend.title = element_blank(),
         legend.text = element_text(size = 15),
         legend.position = "none",
-        panel.border = element_rect(size = 1.5),
+        panel.border = element_rect(linewidth = 1.5),
         plot.margin = unit(c(5.5, 3, 1, 13.5), 'mm'))
 
 plot.dpf.anomaly.LO <- ggplot(simulation.anomaly.LO, aes(x = year.class, y = mean.dpf.anomaly, group = scenario)) +
   geom_hline(yintercept = 0, color = "gray70") +
   geom_line(aes(color = scenario), size = 1, alpha = 0.5) + 
   geom_smooth(data = filter(simulation.anomaly.LO, scenario != "Historical"), aes(color = scenario), size = 1, method = "lm", se = FALSE, show.legend = FALSE) +
-  #geom_richtext(data = filter(lo.eq, trait == "dpf", scenario == "RCP 2.6"), 
-  #              aes(label = paste0("<span style='color:#2c7bb6'>", eq, "; R<sup>2</sup> = ", R2, "</span><br>")),
-  #              x = 1905, y = -28.7, size = 5.5, hjust = 0, vjust = 1, fill = NA, label.color = NA) +
-  #geom_richtext(data = filter(lo.eq, trait == "dpf", scenario == "RCP 6.0"), 
-  #              aes(label = paste0("<span style='color:#fdae61'>", eq, "; R<sup>2</sup> = ", R2, "</span><br>")),
-  #              x = 1905, y = -34.9, size = 5.5, hjust = 0, vjust = 1, fill = NA, label.color = NA) +
-  #geom_richtext(data = filter(lo.eq, trait == "dpf", scenario == "RCP 8.5"), 
-  #              aes(label = paste0("<span style='color:#d7191c'>", eq, "; R<sup>2</sup> = ", R2, "</span><br>")),
-  #              x = 1905, y = -41.1, size = 5.5, hjust = 0, vjust = 1, fill = NA, label.color = NA) +
+  geom_richtext(data = filter(lo.eq, trait == "dpf", scenario == "RCP 2.6"), 
+                aes(label = paste0("<span style='color:#2c7bb6'>", eq, "; R<sup>2</sup> = ", R2, "</span><br>")),
+                x = 1905, y = -28.7, size = 5.5, hjust = 0, vjust = 1, fill = NA, label.color = NA) +
+  geom_richtext(data = filter(lo.eq, trait == "dpf", scenario == "RCP 6.0"), 
+                aes(label = paste0("<span style='color:#fdae61'>", eq, "; R<sup>2</sup> = ", R2, "</span><br>")),
+                x = 1905, y = -34.9, size = 5.5, hjust = 0, vjust = 1, fill = NA, label.color = NA) +
+  geom_richtext(data = filter(lo.eq, trait == "dpf", scenario == "RCP 8.5"), 
+                aes(label = paste0("<span style='color:#d7191c'>", eq, "; R<sup>2</sup> = ", R2, "</span><br>")),
+                x = 1905, y = -41.1, size = 5.5, hjust = 0, vjust = 1, fill = NA, label.color = NA) +
   scale_y_continuous(limits = c(-51, 11), breaks = seq(-50, 10, 10), expand = c(0, 0)) +
   scale_x_continuous(limits = c(1900, 2100), breaks = seq(1900, 2100, 25), expand = c(0, 0.2)) +
   scale_color_manual(values = c("gray50","#2c7bb6", "#fdae61",  "#d7191c")) +
   labs(y = "Incubation Duration\nAnomaly (Days)") +
   theme_few() + 
   theme(axis.title = element_blank(),
-        #axis.text.x = element_text(size = 15, angle = 45, hjust = 1),
-        #axis.text.y = element_text(size = 15),
-        axis.text.x = element_text(size = 18, angle = 45, hjust = 1),
-        axis.text.y = element_text(size = 18),
+        axis.text.x = element_text(size = 15, angle = 45, hjust = 1),
+        axis.text.y = element_text(size = 15),
+        #axis.text.x = element_text(size = 18, angle = 45, hjust = 1),
+        #axis.text.y = element_text(size = 18),
         axis.ticks.length = unit(2, 'mm'),
         legend.position = "none",
-        panel.border = element_rect(size = 1.5),
+        panel.border = element_rect(linewidth = 1.5),
         plot.margin = unit(c(5.5, 3, 1, 12), 'mm'))
 
 plot.hatch.anomaly.LO <- ggplot(simulation.anomaly.LO, aes(x = year.class, y = mean.hatch.yday.anomaly, group = scenario)) +
   geom_hline(yintercept = 0, color = "gray70") +
   geom_line(aes(color = scenario), size = 1, alpha = 0.5) + 
   geom_smooth(data = filter(simulation.anomaly.LO, scenario != "Historical"), aes(color = scenario), size = 1, method = "lm", se = FALSE, show.legend = FALSE) +
-  #geom_richtext(data = filter(lo.eq, trait == "hatch", scenario == "RCP 2.6"), 
-  #              aes(label = paste0("<span style='color:#2c7bb6'>", eq, "; R<sup>2</sup> = ", R2, "</span><br>")),
-  #              x = 1905, y = -10.5, size = 5.5, hjust = 0, vjust = 1, fill = NA, label.color = NA) +
-  #geom_richtext(data = filter(lo.eq, trait == "hatch", scenario == "RCP 6.0"), 
-  #              aes(label = paste0("<span style='color:#fdae61'>", eq, "; R<sup>2</sup> = ", R2, "</span><br>")),
-  #              x = 1905, y = -14.0, size = 5.5, hjust = 0, vjust = 1, fill = NA, label.color = NA) +
-  #geom_richtext(data = filter(lo.eq, trait == "hatch", scenario == "RCP 8.5"), 
-  #              aes(label = paste0("<span style='color:#d7191c'>", eq, "; R<sup>2</sup> = ", R2, "</span><br>")),
-  #              x = 1905, y = -17.5, size = 5.5, hjust = 0, vjust = 1, fill = NA, label.color = NA) +
+  geom_richtext(data = filter(lo.eq, trait == "hatch", scenario == "RCP 2.6"), 
+                aes(label = paste0("<span style='color:#2c7bb6'>", eq, "; R<sup>2</sup> = ", R2, "</span><br>")),
+                x = 1905, y = -10.5, size = 5.5, hjust = 0, vjust = 1, fill = NA, label.color = NA) +
+  geom_richtext(data = filter(lo.eq, trait == "hatch", scenario == "RCP 6.0"), 
+                aes(label = paste0("<span style='color:#fdae61'>", eq, "; R<sup>2</sup> = ", R2, "</span><br>")),
+                x = 1905, y = -14.0, size = 5.5, hjust = 0, vjust = 1, fill = NA, label.color = NA) +
+  geom_richtext(data = filter(lo.eq, trait == "hatch", scenario == "RCP 8.5"), 
+                aes(label = paste0("<span style='color:#d7191c'>", eq, "; R<sup>2</sup> = ", R2, "</span><br>")),
+                x = 1905, y = -17.5, size = 5.5, hjust = 0, vjust = 1, fill = NA, label.color = NA) +
   scale_y_continuous(limits = c(-23, 12), breaks = seq(-20, 10, 5), expand = c(0, 0)) +
   scale_x_continuous(limits = c(1900, 2100), breaks = seq(1900, 2100, 25), expand = c(0, 0.2)) +
   scale_color_manual(values = c("gray50","#2c7bb6", "#fdae61",  "#d7191c")) +
   labs(y = "Hatching Date\nAnomaly (Days)") +
   theme_few() + 
   theme(axis.title = element_blank(),
-        #axis.text.x = element_text(size = 15, angle = 45, hjust = 1),
-        #axis.text.y = element_text(size = 15),
-        axis.text.x = element_text(size = 18, angle = 45, hjust = 1),
-        axis.text.y = element_text(size = 18),
+        axis.text.x = element_text(size = 15, angle = 45, hjust = 1),
+        axis.text.y = element_text(size = 15),
+        #axis.text.x = element_text(size = 18, angle = 45, hjust = 1),
+        #axis.text.y = element_text(size = 18),
         axis.ticks.length = unit(2, 'mm'),
         legend.position = "none",
-        panel.border = element_rect(size = 1.5),
+        panel.border = element_rect(linewidth = 1.5),
         plot.margin = unit(c(4.5, 3, 2, 12), 'mm'))
 
 
@@ -271,30 +274,30 @@ plot.spawn.anomaly.LK <- ggplot(simulation.anomaly.LK, aes(x = year.class, y = m
   geom_line(aes(color = scenario), size = 1, alpha = 0.5) + 
   geom_smooth(data = filter(simulation.anomaly.LK, scenario != "Historical"), 
               aes(color = scenario), size = 1, method = "lm", se = FALSE, show.legend = FALSE) +
-  #geom_richtext(data = filter(lk.eq, trait == "spawn", scenario == "RCP 2.6"), 
-  #              aes(label = paste0("<span style='color:#2c7bb6'>", eq, "; R<sup>2</sup> = ", R2, "</span><br>")),
-  #              x = 1905, y = 34.5, size = 5.5, hjust = 0, vjust = 1, fill = NA, label.color = NA) +
-  #geom_richtext(data = filter(lk.eq, trait == "spawn", scenario == "RCP 6.0"), 
-  #              aes(label = paste0("<span style='color:#fdae61'>", eq, "; R<sup>2</sup> = ", R2, "</span><br>")),
-  #              x = 1905, y = 30.2, size = 5.5, hjust = 0, vjust = 1, fill = NA, label.color = NA) +
-  #geom_richtext(data = filter(lk.eq, trait == "spawn", scenario == "RCP 8.5"), 
-  #              aes(label = paste0("<span style='color:#d7191c'>", eq, "; R<sup>2</sup> = ", R2, "</span><br>")),
-  #              x = 1905, y = 25.9, size = 5.5, hjust = 0, vjust = 1, fill = NA, label.color = NA) +
+  geom_richtext(data = filter(lk.eq, trait == "spawn", scenario == "RCP 2.6"), 
+                aes(label = paste0("<span style='color:#2c7bb6'>", eq, "; R<sup>2</sup> = ", R2, "</span><br>")),
+                x = 1905, y = 34.5, size = 5.5, hjust = 0, vjust = 1, fill = NA, label.color = NA) +
+  geom_richtext(data = filter(lk.eq, trait == "spawn", scenario == "RCP 6.0"), 
+                aes(label = paste0("<span style='color:#fdae61'>", eq, "; R<sup>2</sup> = ", R2, "</span><br>")),
+                x = 1905, y = 30.2, size = 5.5, hjust = 0, vjust = 1, fill = NA, label.color = NA) +
+  geom_richtext(data = filter(lk.eq, trait == "spawn", scenario == "RCP 8.5"), 
+                aes(label = paste0("<span style='color:#d7191c'>", eq, "; R<sup>2</sup> = ", R2, "</span><br>")),
+                x = 1905, y = 25.9, size = 5.5, hjust = 0, vjust = 1, fill = NA, label.color = NA) +
   scale_y_continuous(limits = c(-7, 36), breaks = seq(-5, 35, 5), expand = c(0, 0)) +
   scale_x_continuous(limits = c(1900, 2100), breaks = seq(1900, 2100, 25), expand = c(0, 0.2)) +
   scale_color_manual(values = c("gray50","#2c7bb6", "#fdae61",  "#d7191c")) +
   labs(y = "Spawning Date\nAnomaly (Days)") +
   theme_few() + 
   theme(axis.title = element_blank(),
-        #axis.text.x = element_text(size = 15, angle = 45, hjust = 1),
-        #axis.text.y = element_text(size = 15),
-        axis.text.x = element_text(size = 18, angle = 45, hjust = 1),
-        axis.text.y = element_text(size = 18),
+        axis.text.x = element_text(size = 15, angle = 45, hjust = 1),
+        axis.text.y = element_text(size = 15),
+        #axis.text.x = element_text(size = 18, angle = 45, hjust = 1),
+        #axis.text.y = element_text(size = 18),
         axis.ticks.length = unit(2, 'mm'),
         legend.title = element_blank(),
         legend.text = element_text(size = 15),
         legend.position = "none",
-        panel.border = element_rect(size = 1.5),
+        panel.border = element_rect(linewidth = 1.5),
         plot.margin = unit(c(5.5, 3, 1, 13.5), 'mm'))
 
 plot.dpf.anomaly.LK <- ggplot(simulation.anomaly.LK, aes(x = year.class, y = mean.dpf.anomaly, group = scenario)) +
@@ -302,28 +305,28 @@ plot.dpf.anomaly.LK <- ggplot(simulation.anomaly.LK, aes(x = year.class, y = mea
   geom_line(aes(color = scenario), size = 1, alpha = 0.5) + 
   geom_smooth(data = filter(simulation.anomaly.LK, scenario != "Historical"), 
               aes(color = scenario), size = 1, method = "lm", se = FALSE, show.legend = FALSE) +
-  #geom_richtext(data = filter(lk.eq, trait == "dpf", scenario == "RCP 2.6"), 
-  #              aes(label = paste0("<span style='color:#2c7bb6'>", eq, "; R<sup>2</sup> = ", R2, "</span><br>")),
-  #              x = 1905, y = -28.7, size = 5.5, hjust = 0, vjust = 1, fill = NA, label.color = NA) +
-  #geom_richtext(data = filter(lk.eq, trait == "dpf", scenario == "RCP 6.0"), 
-  #              aes(label = paste0("<span style='color:#fdae61'>", eq, "; R<sup>2</sup> = ", R2, "</span><br>")),
-  #              x = 1905, y = -34.9, size = 5.5, hjust = 0, vjust = 1, fill = NA, label.color = NA) +
-  #geom_richtext(data = filter(lk.eq, trait == "dpf", scenario == "RCP 8.5"), 
-  #              aes(label = paste0("<span style='color:#d7191c'>", eq, "; R<sup>2</sup> = ", R2, "</span><br>")),
-  #              x = 1905, y = -41.1, size = 5.5, hjust = 0, vjust = 1, fill = NA, label.color = NA) +
+  geom_richtext(data = filter(lk.eq, trait == "dpf", scenario == "RCP 2.6"), 
+                aes(label = paste0("<span style='color:#2c7bb6'>", eq, "; R<sup>2</sup> = ", R2, "</span><br>")),
+                x = 1905, y = -28.7, size = 5.5, hjust = 0, vjust = 1, fill = NA, label.color = NA) +
+  geom_richtext(data = filter(lk.eq, trait == "dpf", scenario == "RCP 6.0"), 
+                aes(label = paste0("<span style='color:#fdae61'>", eq, "; R<sup>2</sup> = ", R2, "</span><br>")),
+                x = 1905, y = -34.9, size = 5.5, hjust = 0, vjust = 1, fill = NA, label.color = NA) +
+  geom_richtext(data = filter(lk.eq, trait == "dpf", scenario == "RCP 8.5"), 
+                aes(label = paste0("<span style='color:#d7191c'>", eq, "; R<sup>2</sup> = ", R2, "</span><br>")),
+                x = 1905, y = -41.1, size = 5.5, hjust = 0, vjust = 1, fill = NA, label.color = NA) +
   scale_y_continuous(limits = c(-51, 11), breaks = seq(-50, 10, 10), expand = c(0, 0)) +
   scale_x_continuous(limits = c(1900, 2100), breaks = seq(1900, 2100, 25), expand = c(0, 0.2)) +
   scale_color_manual(values = c("gray50","#2c7bb6", "#fdae61",  "#d7191c")) +
   labs(y = "Incubation Duration\nAnomaly (Days)") +
   theme_few() + 
   theme(axis.title = element_blank(),
-        #axis.text.x = element_text(size = 15, angle = 45, hjust = 1),
-        #axis.text.y = element_text(size = 15),
-        axis.text.x = element_text(size = 18, angle = 45, hjust = 1),
-        axis.text.y = element_text(size = 18),
+        axis.text.x = element_text(size = 15, angle = 45, hjust = 1),
+        axis.text.y = element_text(size = 15),
+        #axis.text.x = element_text(size = 18, angle = 45, hjust = 1),
+        #axis.text.y = element_text(size = 18),
         axis.ticks.length = unit(2, 'mm'),
         legend.position = "none",
-        panel.border = element_rect(size = 1.5),
+        panel.border = element_rect(linewidth = 1.5),
         plot.margin = unit(c(5.5, 3, 1, 12), 'mm'))
 
 plot.hatch.anomaly.LK <- ggplot(simulation.anomaly.LK, aes(x = year.class, y = mean.hatch.yday.anomaly, group = scenario)) +
@@ -331,28 +334,28 @@ plot.hatch.anomaly.LK <- ggplot(simulation.anomaly.LK, aes(x = year.class, y = m
   geom_line(aes(color = scenario), size = 1, alpha = 0.5) + 
   geom_smooth(data = filter(simulation.anomaly.LK, scenario != "Historical"), 
               aes(color = scenario), size = 1, method = "lm", se = FALSE, show.legend = FALSE) +
-  #geom_richtext(data = filter(lk.eq, trait == "hatch", scenario == "RCP 2.6"), 
-  #              aes(label = paste0("<span style='color:#2c7bb6'>", eq, "; R<sup>2</sup> = ", R2, "</span><br>")),
-  #              x = 1905, y = -10.5, size = 5.5, hjust = 0, vjust = 1, fill = NA, label.color = NA) +
-  #geom_richtext(data = filter(lk.eq, trait == "hatch", scenario == "RCP 6.0"), 
-  #              aes(label = paste0("<span style='color:#fdae61'>", eq, "; R<sup>2</sup> = ", R2, "</span><br>")),
-  #              x = 1905, y = -14.0, size = 5.5, hjust = 0, vjust = 1, fill = NA, label.color = NA) +
-  #geom_richtext(data = filter(lk.eq, trait == "hatch", scenario == "RCP 8.5"), 
-  #              aes(label = paste0("<span style='color:#d7191c'>", eq, "; R<sup>2</sup> = ", R2, "</span><br>")),
-  #              x = 1905, y = -17.5, size = 5.5, hjust = 0, vjust = 1, fill = NA, label.color = NA) +
+  geom_richtext(data = filter(lk.eq, trait == "hatch", scenario == "RCP 2.6"), 
+                aes(label = paste0("<span style='color:#2c7bb6'>", eq, "; R<sup>2</sup> = ", R2, "</span><br>")),
+                x = 1905, y = -10.5, size = 5.5, hjust = 0, vjust = 1, fill = NA, label.color = NA) +
+  geom_richtext(data = filter(lk.eq, trait == "hatch", scenario == "RCP 6.0"), 
+                aes(label = paste0("<span style='color:#fdae61'>", eq, "; R<sup>2</sup> = ", R2, "</span><br>")),
+                x = 1905, y = -14.0, size = 5.5, hjust = 0, vjust = 1, fill = NA, label.color = NA) +
+  geom_richtext(data = filter(lk.eq, trait == "hatch", scenario == "RCP 8.5"), 
+                aes(label = paste0("<span style='color:#d7191c'>", eq, "; R<sup>2</sup> = ", R2, "</span><br>")),
+                x = 1905, y = -17.5, size = 5.5, hjust = 0, vjust = 1, fill = NA, label.color = NA) +
   scale_y_continuous(limits = c(-23, 12), breaks = seq(-20, 10, 5), expand = c(0, 0)) +
   scale_x_continuous(limits = c(1900, 2100), breaks = seq(1900, 2100, 25), expand = c(0, 0.2)) +
   scale_color_manual(values = c("gray50","#2c7bb6", "#fdae61",  "#d7191c")) +
   labs(y = "Hatching Date\nAnomaly (Days)") +
   theme_few() + 
   theme(axis.title = element_blank(),
-        #axis.text.x = element_text(size = 15, angle = 45, hjust = 1),
-        #axis.text.y = element_text(size = 15),
-        axis.text.x = element_text(size = 18, angle = 45, hjust = 1),
-        axis.text.y = element_text(size = 18),
+        axis.text.x = element_text(size = 15, angle = 45, hjust = 1),
+        axis.text.y = element_text(size = 15),
+        #axis.text.x = element_text(size = 18, angle = 45, hjust = 1),
+        #axis.text.y = element_text(size = 18),
         axis.ticks.length = unit(2, 'mm'),
         legend.position = "none",
-        panel.border = element_rect(size = 1.5),
+        panel.border = element_rect(linewidth = 1.5),
         plot.margin = unit(c(4.5, 3, 2, 12), 'mm'))
 
 
@@ -516,5 +519,5 @@ plot.all <- grid.arrange(
 )
 
 
-ggsave("figures/artedi-albula-simulation-anomaly-ForDefense.png", plot = plot.all, width = 19.5, height = 12.5, dpi = 300)
+ggsave("figures/IJL-submission/artedi-albula-simulation-anomaly.tiff", plot = plot.all, width = 19.5, height = 12.5, dpi = 500)
 

@@ -69,10 +69,7 @@ model.locations <- read_excel("data/model-population-parameters.xlsx", sheet = "
   filter(population == "Annecy")
 
 model.parameters <- read_excel("data/model-structural-parameters.xlsx", sheet = "coefficients", skip = 32) %>% 
-  filter(lake == "Lake Constance", species == "lavaretus macrophthalmus")
-
-survival.reg <- read_excel("data/survival-regressions.xlsx", sheet = "survival-regressions", skip = 30) %>% 
-  filter(lake == "Lake Geneva")
+  filter(lake == "Lake Constance", species == "lavaretus wartmanni")
 
 
 #### FILTER SIMULATION TEMPERATURES TO SPAWNING DEPTH --------------------------------------------
@@ -175,12 +172,6 @@ simulation.model.hatch.LA <- do.call(rbind, lapply(unique(simulation.data.comb$y
         summarize(mean.inc.temp_c = mean(mean.temp_c))
       simulation.temp.numeric <- simulation.temp %>% pull(mean.inc.temp_c)
       
-      ## Calculate survival estimate
-      surv.est <- survival.reg %>% mutate(interval = between(simulation.temp.numeric, start.temp, end.temp)) %>% 
-        filter(interval == "TRUE") %>% 
-        mutate(surv.est = (m * simulation.temp.numeric) + b) %>% pull(surv.est)
-      embryo.surv <- floor(daily.eggs * surv.est)
-      
       ## Extract hatch date
       simulation.data.model.output.max <- simulation.data.model.output %>% 
         slice(which.max(perc.cum)) %>% 
@@ -196,12 +187,10 @@ simulation.model.hatch.LA <- do.call(rbind, lapply(unique(simulation.data.comb$y
       
       ## Repeat rows to equal cohort size and assign survival
       simulation.data.model.output.max.rep <- simulation.data.model.output.max %>% slice(rep(1:n(), each = daily.eggs)) %>% 
-        mutate(daily.egg.rep = 1:n(),
-               surv = c(rep(1, embryo.surv), rep(0, n()-embryo.surv)),
-               inc.temp_c = simulation.temp.numeric)
+        mutate(daily.egg.rep = 1:n())
     })) %>% 
       mutate(hatch.length_days = length(unique(hatch.yday))) %>% 
-      select(1:8, hatch.length_days, 9:16)
+      select(1:8, hatch.length_days, 9:14)
   }))
 }))
 
@@ -210,7 +199,7 @@ simulation.model.hatch.LA <- do.call(rbind, lapply(unique(simulation.data.comb$y
 
 ## historical means across 1900-2005
 simulation.model.hist.mean.LA <- simulation.model.hatch.LA %>% 
-  filter(scenario == "Historical", surv == 1) %>% 
+  filter(scenario == "Historical") %>% 
   summarize(mean.hist.spawn.yday = mean(spawn.yday),
             mean.hist.hatch.yday = mean(hatch.yday),
             mean.hist.hatch.length = mean(hatch.length_days),
@@ -219,7 +208,6 @@ simulation.model.hist.mean.LA <- simulation.model.hatch.LA %>%
 
 ## calculate anomaly
 simulation.anomaly.LA <- simulation.model.hatch.LA %>%
-  filter(surv == 1) %>% 
   group_by(scenario) %>% 
   distinct(spawn.date, .keep_all = TRUE) %>% 
   mutate(mean.hist.spawn.yday = simulation.model.hist.mean.LA$mean.hist.spawn.yday,
@@ -317,5 +305,5 @@ simulation.anomaly.comp.LA <- do.call(rbind, lapply(trait.list, function(i) {
 write.csv(simulation.anomaly.comp.LA, "data/anomaly-slopes/lake-annecy-multComp.csv", row.names = FALSE)
 
 ## Clean environment
-rm("simulation.data", "model.parameters", "simulation.model.hist.mean.LA", "survival.reg", "trait.list", "simulation.data.comb", "simulation.data.filt", "model.locations", "simulation.files")
+rm("simulation.data", "model.parameters", "simulation.model.hist.mean.LA", "trait.list", "simulation.data.comb", "simulation.data.filt", "model.locations", "simulation.files")
 

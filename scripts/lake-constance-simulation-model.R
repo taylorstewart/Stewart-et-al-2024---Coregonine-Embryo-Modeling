@@ -9,11 +9,7 @@ library(emmeans)
 
 #### LOAD TEMPERATURE DATA -----------------------------------------------------------------------
 
-simulation.data <- fread("data/lake-constance/lake-constance-temperature.csv", skip = 27) %>% 
-  mutate(year.class = ifelse(yday > 240, year + 1, year),
-         date = as.POSIXct(paste0(year, "-", month, "-", day), format = "%Y-%m-%d")) %>% 
-  filter(scenario != "Historical" | year.class != 2006, year.class != 2100)
-spawn.temp.data <- fread("data/lake-constance/lake-constance-temperature-spawning.csv", skip = 28) %>% 
+simulation.data <- fread("data/lake-constance/lake-constance-temperature-spawning.csv", skip = 28) %>% 
   mutate(year.class = ifelse(yday > 240, year + 1, year),
          date = as.POSIXct(paste0(year, "-", month, "-", day), format = "%Y-%m-%d")) %>% 
   filter(scenario != "Historical" | year.class != 2006, year.class != 2100)
@@ -24,10 +20,7 @@ spawn.temp.data <- fread("data/lake-constance/lake-constance-temperature-spawnin
 model.parameters <- read_excel("data/model-structural-parameters.xlsx", sheet = "coefficients", skip = 32) %>% 
   filter(lake == "Lake Constance", species == "lavaretus wartmanni")
 
-survival.reg <- read_excel("data/survival-regressions.xlsx", sheet = "survival-regressions", skip = 30) %>% 
-  filter(lake == "Lake Constance", species == "lavaretus wartmanni")
-
-spawn.dates <- fread("data/lake-constance/lake-constance-scenarios-spawning.csv", skip = 28) %>% 
+spawn.dates <- fread("data/lake-constance/lake-constance-scenarios-spawning.csv") %>% 
   mutate(year.class = ifelse(yday > 240, year + 1, year),
          spawn.date = as.Date(round(spawn.yday, 0), origin = paste0(year, "-01-01"))) %>% 
   select(year, year.class, scenario, spawn.date)
@@ -40,11 +33,10 @@ simulation.model.hatch.LC <- do.call(rbind, lapply(unique(simulation.data$year.c
   
   ## filter to a single winter
   simulation.data.annual <- simulation.data %>% filter(year.class == i)
-  spawn.temp.data.annual <- spawn.temp.data %>% filter(year.class == i)
   spawn.date <- spawn.dates %>% filter(year.class == i)
   
   ## Calculate the start date of spawning period
-  spawn.start.date <- spawn.temp.data.annual %>% 
+  spawn.start.date <- simulation.data.annual %>% 
     left_join(spawn.date) %>% 
     group_by(scenario) %>% 
     filter(date == spawn.date) %>% 
@@ -53,7 +45,7 @@ simulation.model.hatch.LC <- do.call(rbind, lapply(unique(simulation.data$year.c
     select(scenario, year.class, spawn.start.date = date)
   
   ## Calculate the end date of spawning period
-  spawn.end.date <- spawn.temp.data.annual %>% 
+  spawn.end.date <- simulation.data.annual %>% 
     left_join(spawn.date) %>% 
     group_by(scenario) %>% 
     filter(date == spawn.date+9) %>% 
@@ -70,7 +62,7 @@ simulation.model.hatch.LC <- do.call(rbind, lapply(unique(simulation.data$year.c
   }
   
   ## Combine start and end dates; Filter to each day in spawning period
-  spawn.period.temp <- spawn.temp.data.annual %>% 
+  spawn.period.temp <- simulation.data.annual %>% 
     left_join(spawn.start.date) %>% 
     left_join(spawn.end.date) %>% 
     mutate(spawn.length_days = as.Date(spawn.end.date) - as.Date(spawn.start.date)) %>%
@@ -117,12 +109,6 @@ simulation.model.hatch.LC <- do.call(rbind, lapply(unique(simulation.data$year.c
                   median.inc.temp_c = median(temp_c))
       simulation.temp.numeric <- simulation.temp %>% pull(mean.inc.temp_c)
       
-      ## Calculate survival estimate
-      surv.est <- survival.reg %>% mutate(interval = between(simulation.temp.numeric, start.temp, end.temp)) %>% 
-        filter(interval == "TRUE") %>% 
-        mutate(surv.est = (m * simulation.temp.numeric) + b) %>% pull(surv.est)
-      embryo.surv <- floor(daily.eggs * surv.est)
-      
       ## Extract hatch date
       simulation.data.model.output.max <- simulation.data.model.output %>% 
         slice(which.max(perc.cum)) %>% 
@@ -136,14 +122,12 @@ simulation.model.hatch.LC <- do.call(rbind, lapply(unique(simulation.data$year.c
         select(scenario, year.class, spawn.date, spawn.yday, spawn.length_days, spawn.temp_c, hatch.date = date, hatch.yday, hatch.temp_c = temp_c, dpf, ADD) %>% 
         bind_cols(simulation.temp)
       
-      ## Repeat rows to equal cohort size and assign survival
+      ## Repeat rows to equal cohort size
       simulation.data.model.output.max.rep <- simulation.data.model.output.max %>% slice(rep(1:n(), each = daily.eggs)) %>% 
-        mutate(daily.egg.rep = 1:n(),
-               surv = c(rep(1, embryo.surv), rep(0, n()-embryo.surv)),
-               inc.temp_c = simulation.temp.numeric)
+        mutate(daily.egg.rep = 1:n())
     })) %>% 
       mutate(hatch.length_days = length(unique(hatch.yday))) %>% 
-      select(1:8, hatch.length_days, 9:16)
+      select(1:8, hatch.length_days, 9:14)
   }))
 }))
 
@@ -152,7 +136,7 @@ simulation.model.hatch.LC <- do.call(rbind, lapply(unique(simulation.data$year.c
 
 ## historical means across 1900-2005
 simulation.model.hist.mean.LC <- simulation.model.hatch.LC %>% 
-  filter(scenario == "Historical", surv == 1) %>% 
+  filter(scenario == "Historical") %>% 
   summarize(mean.hist.spawn.yday = mean(spawn.yday),
             mean.hist.hatch.yday = mean(hatch.yday),
             mean.hist.hatch.length = mean(hatch.length_days),
@@ -161,7 +145,6 @@ simulation.model.hist.mean.LC <- simulation.model.hatch.LC %>%
 
 ## calculate anomaly
 simulation.anomaly.LC <- simulation.model.hatch.LC %>%
-  filter(surv == 1) %>% 
   group_by(scenario) %>% 
   distinct(spawn.date, .keep_all = TRUE) %>% 
   mutate(mean.hist.spawn.yday = simulation.model.hist.mean.LC$mean.hist.spawn.yday,
@@ -263,4 +246,4 @@ simulation.anomaly.comp.LC <- do.call(rbind, lapply(trait.list, function(i) {
 write.csv(simulation.anomaly.comp.LC, "data/anomaly-slopes/lake-constance-multComp.csv", row.names = FALSE)
 
 ## Clean environment
-rm("simulation.data", "spawn.temp.data", "spawn.dates", "model.parameters", "simulation.model.hist.mean.LC", "survival.reg", "trait.list")
+rm("simulation.data", "spawn.dates", "model.parameters", "simulation.model.hist.mean.LC", "trait.list")

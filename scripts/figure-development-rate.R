@@ -4,10 +4,10 @@ library(ggplot2)
 library(ggthemes)
 
 
-model.parameters <- read_excel("data/model-structural-parameters.xlsx", sheet = "coefficients") %>% 
-  filter(lake %in% c("Lake Superior", "Lake Ontario", "Lake Southern Konnevesi", "Lake Constance"),
-         source != "unpublished Thonon") %>% 
-  mutate(group = gsub(" ", ".", as.character(interaction(lake, species))))
+model.parameters <- read_excel("data/model-structural-parameters.xlsx", sheet = "coefficients", skip = 32) %>% 
+  filter(lake %in% c("Lake Superior", "Lake Ontario", "Lake Southern Konnevesi", "Lake Geneva", "Lake Constance")) %>% 
+  mutate(group = gsub(" ", ".", as.character(interaction(lake, species)))) %>% 
+  filter(group != "Lake.Constance.lavaretus", group != "Lake.Constance.lavaretus.macrophthalmus")
 
 
 dr.data <- do.call(rbind, lapply(unique(model.parameters$group), function(i) {
@@ -34,16 +34,16 @@ dr.data <- do.call(rbind, lapply(unique(model.parameters$group), function(i) {
   mutate(group = factor(group, ordered = TRUE,
                         levels = c("Lake.Southern.Konnevesi.albula", "Lake.Southern.Konnevesi.lavaretus",
                                    "Lake.Superior.artedi", "Lake.Ontario.artedi" ,
-                                   "Lake.Constance.lavaretus.wartmanni", "Lake.Constance.lavaretus.macrophthalmus"),
+                                   "Lake.Constance.lavaretus.wartmanni", "Lake.Geneva.lavaretus"),
                         labels = c("Lake S. Konnevesi - Vendace  ", "Lake S. Konnevesi - Whitefish  ",
                                    "Lake Superior - Cisco", "Lake Ontario - Cisco",
-                                   "Lake Constance - Whitefish (pelagic)", "Lake Constance - Whitefish (littoral)")))
+                                   "Lake Constance - Whitefish (pelagic)", "Lake Geneva - Whitefish")))
 
 dr.data.filt <- dr.data %>% filter(group != "Lake S. Konnevesi - Whitefish  ")
 
 
 ggplot(dr.data.filt, aes(x = temp, y = dr, color = group, linetype = group)) + 
-  geom_line(size = 1) +
+  geom_line(linewidth = 1) +
   scale_y_continuous(limits = c(3, 36), breaks = seq(5, 35, 5), expand = c(0, 0)) + 
   scale_x_continuous(limits = c(0, 10), breaks = seq(0, 10, 2.5), expand = c(0, 0)) + 
   scale_linetype_manual(values = c("solid", "dashed", "solid", "dashed", "solid", "dashed", "solid"),
@@ -63,10 +63,10 @@ ggplot(dr.data.filt, aes(x = temp, y = dr, color = group, linetype = group)) +
         legend.key.height = unit(1, 'cm'),
         legend.background = element_rect(fill = "transparent"),
         legend.position = c(0.41, 0.905),
-        panel.border = element_rect(size = 1.5),
+        panel.border = element_rect(linewidth = 1.5),
         plot.title = element_text(size = 20, hjust = 0.5),
         plot.margin = unit(c(2, 7, 2, 2), 'mm'))
 
-ggsave("figures/development-rates.png", width = 12, height = 8, dpi = 300)
+ggsave("figures/IJL-submission/development-rates.tiff", width = 12, height = 8, dpi = 500)
 
 
