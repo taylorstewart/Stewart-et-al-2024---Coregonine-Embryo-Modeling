@@ -1,16 +1,14 @@
 #### CLEAR THE ENVIRONMENT FIRST -----------------------------------------------------------------
-
 rm(list = ls(all.names = TRUE))
 
 
 #### LOAD PACKAGES -------------------------------------------------------------------------------
-
 library(dplyr)
 library(readxl)
 
 
 #### LAKE SUPERIOR CISCO -------------------------------------------------------------------------
-model.data.superior <- read_excel("T:/My Drive/Cisco-Climate-Change/Coregonine-Temp-Embryo/data/Coregonine-Temperature-Experiment-NA-Hatch.xlsx", sheet = "hatching", skip = 52) %>% 
+model.data.superior <- read_excel("data/Coregonine-Temperature-Experiment-NA-Hatch.xlsx", sheet = "hatching", skip = 52) %>% 
   filter(population == "superior") %>% 
   mutate(eye = as.numeric(eye),
          hatch = as.numeric(hatch)) %>% 
@@ -33,7 +31,7 @@ summary(model.superior)
 
 
 #### LAKE ONTARIO CISCO --------------------------------------------------------------------------
-model.data.ontario <- read_excel("T:/My Drive/Cisco-Climate-Change/Coregonine-Temp-Embryo/data/Coregonine-Temperature-Experiment-NA-Hatch.xlsx", sheet = "hatching", skip = 52) %>% 
+model.data.ontario <- read_excel("data/Coregonine-Temperature-Experiment-NA-Hatch.xlsx", sheet = "hatching", skip = 52) %>% 
   filter(population == "ontario") %>% 
   mutate(eye = as.numeric(eye),
          hatch = as.numeric(hatch)) %>% 
@@ -56,7 +54,7 @@ summary(model.ontario)
 
 
 #### LAKE KONNEVESI VENDACE ----------------------------------------------------------------------
-model.data.konnevesi.vendace <- read_excel("T:/My Drive/Cisco-Climate-Change/Coregonine-Temp-Embryo/data/Coregonine-Temperature-Experiment-FI-Hatch.xlsx", sheet = "hatching", skip = 48) %>% 
+model.data.konnevesi.vendace <- read_excel("data/Coregonine-Temperature-Experiment-FI-Hatch.xlsx", sheet = "hatching", skip = 48) %>% 
   mutate(eye = as.numeric(eye),
          hatch = as.numeric(hatch)) %>% 
   filter(species == "albula", !is.na(eye), !is.na(hatch), !is.na(dpf), 
@@ -79,7 +77,7 @@ summary(model.konnevesi.vendace)
 
 
 #### LAKE KONNEVESI EUROPEAN WHITEFISH -----------------------------------------------------------
-model.data.konnevesi.whitefish <- read_excel("T:/My Drive/Cisco-Climate-Change/Coregonine-Temp-Embryo/data/Coregonine-Temperature-Experiment-FI-Hatch.xlsx", sheet = "hatching", skip = 48) %>% 
+model.data.konnevesi.whitefish <- read_excel("data/Coregonine-Temperature-Experiment-FI-Hatch.xlsx", sheet = "hatching", skip = 48) %>% 
   mutate(eye = as.numeric(eye),
          hatch = as.numeric(hatch)) %>% 
   filter(species == "lavaretus", !is.na(eye), !is.na(hatch), !is.na(dpf), 
